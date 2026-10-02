@@ -1,7 +1,7 @@
 # Historias de usuario: 
 
 ## Historia 1:
-Como usuario, quiero marcar una obra con un estado básico (quiero ver o leer / visto o leído).
+Como usuario, quiero marcar una obra con un estado básico (quiero ver o leer / visto o leído) para organizar el contenido.
 
 ## Historia 2:
 Como usuario, quiero ver en qué plataformas de streaming o tiendas digitales está disponible una obra en mi país para saber dónde consumirla.
