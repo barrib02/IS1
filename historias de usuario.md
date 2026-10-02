@@ -30,7 +30,10 @@ Como usuario, quiero personalizar mi perfil: avatar, biografía y banner para re
 ## Historia 10: 
 Como usuario, quiero registrarme mediante correo electrónico para tener una cuenta personal. 
 
-## Historia 11: 
+## Historia 11:
+Como autor, quiero poder subir mi libro a la página web para que los usuarios puedan conocer mis obras.
+
+## Historia 12: 
 Como usuario, quiero poder ver las listas de mis amigos para elegir contenido nuevo que quiera ver/leer. 
 
   
