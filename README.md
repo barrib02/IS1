@@ -3,14 +3,14 @@ Estamos desarrollando una página web que permite conectar a personas de todo el
 
 
 
-## Miembros:
+## 1. Miembros:
 1. Alba Rodríguez
 2. Paula Martínez
 3. Beatriz de Arriba
 4. Álvaro Mota
 6. Iyán Díaz
  
-## Características:
+## 2. Características:
 ### Gestión de colecciones
 - Añadir contenido a la biblioteca personal
 - Crear listas personalizadas
@@ -27,18 +27,13 @@ Estamos desarrollando una página web que permite conectar a personas de todo el
 - Actividad reciente
 - Compartir listas
 
-## Tecnologías utilizadas
-### Backend
-- Java
-- Spring Boot 4
-- Maven
+## 3. Tecnologías utilizadas
  
-### Base de datos
-- PostgreSQL
- 
-### Entorno de desarrollo
-- Eclipse IDE
- 
-### Control de versiones
-- Git
-- GitHub
+| Área | Tecnología |
+|--------|-----------|
+| Backend | Spring Boot 4 |
+| Lenguaje | Java |
+| IDE | Eclipse |
+| Base de Datos | PostgreSQL |
+| Build Tool | Maven |
+| Repositorio | GitHub |
