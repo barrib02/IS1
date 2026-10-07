@@ -1,4 +1,4 @@
-package com.example.demo.entity.EstadoObra
+package com.example.demo.entity
 
 public enum EstadoObra {
 PENDIENTE,
