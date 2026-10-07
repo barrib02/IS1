@@ -1,19 +1,5 @@
 package com.example.demo.entity;
 
-public enum EstadoObra {
-PENDIENTE,
-EN_CURSO,
-COMPLETADA,
-ABANDONADA
-}
-
-public enum TipoObra {
-LIBRO,
-PELICULA,
-SERIE,
-VIDEOJUEGO
-}
-
 public class Obra {
  
 private Long id;
