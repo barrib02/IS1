@@ -4,6 +4,7 @@ public class Obra {
  
 private Long id;
 private String titulo;
+private String autor;
 private String descripcion;
 private TipoObra tipo;
 private EstadoObra estado;
@@ -11,10 +12,11 @@ private EstadoObra estado;
 public Obra() {
 }
  
-public Obra(Long id, String titulo, String descripcion,
+public Obra(Long id, String titulo, String autor String descripcion,
 TipoObra tipo, EstadoObra estado) {
 this.id = id;
 this.titulo = titulo;
+this.autor = autor;
 this.descripcion = descripcion;
 this.tipo = tipo;
 this.estado = estado;
@@ -34,6 +36,14 @@ return titulo;
  
 public void setTitulo(String titulo) {
 this.titulo = titulo;
+}
+
+public String getAutor() {
+return autor;
+}
+ 
+public void setAutor(String autor) {
+this.autor = autor;
 }
  
 public String getDescripcion() {
@@ -55,6 +65,9 @@ this.tipo = tipo;
 public EstadoObra getEstado() {
 return estado;
 }
+
+public EstadoObra setEstado(EstadoObra estado){
+this.estado = estado;
  
 public void setEstado(EstadoObra estado) {
 this.estado = estado;
