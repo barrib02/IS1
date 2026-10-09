@@ -6,7 +6,7 @@ import java.util.List;
 import com.example.demo.dto.SearchResultDTO;
 
 public class SearchService {
-	public List<SearchResultDTO> buscarPorTitulo(String texto) {
+	public List<SearchResultDTO> BuscarPorTitulo(String texto) {
 		List<SearchResultDTO> resultados = new ArrayList<>();
 		resultados.add(
 		new SearchResultDTO(
