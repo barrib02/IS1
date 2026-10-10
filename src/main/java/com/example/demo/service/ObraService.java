@@ -42,4 +42,30 @@ public class ObraService {
 	    return resultados;
 	}
 	
+	public EstadoObra obtenerEstado(Long id) {
+
+	    for (Obra obra : obras) {
+
+	        if (obra.getId().equals(id)) {
+	            return obra.getEstado();
+	        }
+	    }
+
+	    return null;
+	}
+	
+	public boolean cambiarEstado(Long id, EstadoObra nuevoEstado) {
+
+	    for (Obra obra : obras) {
+
+	        if (obra.getId().equals(id)) {
+	            obra.setEstado(nuevoEstado);
+	            return true;
+	        }
+	    }
+
+	    return false;
+	}
+	
+	
 }
