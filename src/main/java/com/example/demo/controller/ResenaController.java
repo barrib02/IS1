@@ -1,0 +1,49 @@
+
+package com.example.demo.controller;
+
+import com.example.demo.entity.Resena;
+import com.example.demo.service.ResenaService;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/resenas")
+public class ResenaController {
+
+    private final ResenaService resenaService;
+
+    public ResenaController(ResenaService resenaService) {
+        this.resenaService = resenaService;
+    }
+
+    // Crear reseña
+    @PostMapping
+    public Resena crearResena(@RequestBody Resena resena) {
+        return resenaService.crearResena(resena);
+    }
+
+    // Editar reseña
+    @PutMapping("/{id}")
+    public Resena editarResena(
+            @PathVariable Long id,
+            @RequestBody Resena resena) {
+
+        return resenaService.editarResena(
+                id, resena.getTexto());
+    }
+
+    // Eliminar reseña
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void eliminarResena(@PathVariable Long id) {
+        resenaService.eliminarResena(id);
+    }
+
+    // Gestionar errores de validación
+    @ExceptionHandler(IllegalArgumentException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public String manejarError(IllegalArgumentException error) {
+        return error.getMessage();
+    }
+}
