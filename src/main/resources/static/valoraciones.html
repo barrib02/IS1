@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Valorar una obra - GoodreadsPlus</title>
+
+<style>
+body {
+	font-family: Arial, sans-serif;
+	padding: 30px;
+}
+
+.estrella {
+	font-size: 40px;
+	color: lightgray;
+	cursor: pointer;
+}
+
+.estrella.seleccionada {
+	color: gold;
+}
+</style>
+</head>
+
+<body>
+
+	<h1>Valorar una obra</h1>
+
+	<label for="obraId">ID de la obra:</label>
+	<input type="number" id="obraId" min="1" value="1">
+
+	<br>
+	<br>
+	<button id="cargarValoracion">Cargar valoración</button>
+
+
+	<br>
+	<br>
+
+
+	<p>Selecciona una puntuación del 1 al 5:</p>
+
+	<div id="estrellas">
+		<span class="estrella" data-valor="1">★</span> <span class="estrella"
+			data-valor="2">★</span> <span class="estrella" data-valor="3">★</span>
+		<span class="estrella" data-valor="4">★</span> <span class="estrella"
+			data-valor="5">★</span>
+	</div>
+
+	<p id="resultado">Todavía no has seleccionado ninguna puntuación.</p>
+
+	<label for="textoResena">Reseña (opcional):</label>
+	<br>
+
+	<textarea id="textoResena" rows="5" cols="45"
+		placeholder="Escribe tu opinión si quieres..."></textarea>
+
+	<p id="contadorPalabras">0 / 200 palabras</p>
+
+	<br>
+
+
+
+
+
+
+
+
+	<button id="guardarValoracion">Guardar valoración</button>
+	<button id="eliminarValoracion">Eliminar valoración y reseña</button>
+	<br>
+	<br>
+
+
+
+	<p id="mensajeGuardado"></p>
+
+	<script>
+        const estrellas = document.querySelectorAll(".estrella");
+        const resultado = document.getElementById("resultado");
+        let puntuacionSeleccionada = 0;
+        
+        let valoracionActualId = null;
+        let resenaActualId = null;
+        
+        let obraCargadaId = null;
+        
+        document.getElementById("obraId").addEventListener("input", function() {
+            valoracionActualId = null;
+            resenaActualId = null;
+            puntuacionSeleccionada = 0;
+            obraCargadaId = null;
+
+            estrellas.forEach(estrella => {
+                estrella.classList.remove("seleccionada");
+            });
+
+            resultado.textContent = "Pulsa Cargar valoración para consultar esta obra.";
+
+            const cuadroResena = document.getElementById("textoResena");
+            cuadroResena.value = "";
+            cuadroResena.dispatchEvent(new Event("input"));
+        });
+        
+        document.getElementById("cargarValoracion").addEventListener("click", async function() {
+
+        	const obraId = Number(document.getElementById("obraId").value);
+        	obraCargadaId = null;
+        	let valoracionId;
+            const mensaje = document.getElementById("mensajeGuardado");
+
+            if (!Number.isInteger(obraId) || obraId < 1) {
+                mensaje.textContent = "Introduce un ID de valoración válido.";
+                return;
+            }
+
+            try {
+            	const respuesta = await fetch("/api/valoraciones/obra/" + obraId);
+            	if (respuesta.ok) {
+            	    obraCargadaId = obraId;
+            	}
+            	if (!respuesta.ok || respuesta.status === 204) {
+            	    valoracionActualId = null;
+            	    resenaActualId = null;
+            	    puntuacionSeleccionada = 0;
+            	    obraCargadaId = obraId;
+
+            	    estrellas.forEach(estrella => {
+            	        estrella.classList.remove("seleccionada");
+            	    });
+
+            	    resultado.textContent = "Todavía no has seleccionado ninguna puntuación.";
+
+            	    const cuadroResena = document.getElementById("textoResena");
+            	    cuadroResena.value = "";
+            	    cuadroResena.dispatchEvent(new Event("input"));
+
+            	    mensaje.textContent = "Esta obra todavía no tiene valoración. Puedes crear una nueva.";
+            	    return;
+            	}
+            	
+                const valoracion = await respuesta.json();
+                valoracionId = valoracion.id;
+                valoracionActualId = valoracion.id;
+                resenaActualId = null;
+
+                // Mostrar el ID de la obra guardada
+                document.getElementById("obraId").value = valoracion.obraId;
+
+                // Recuperar la puntuación
+                puntuacionSeleccionada = valoracion.puntuacion;
+
+                // Pintar las estrellas correspondientes
+                estrellas.forEach(estrella => {
+                    const valor = Number(estrella.dataset.valor);
+                    estrella.classList.toggle("seleccionada", valor <= puntuacionSeleccionada);
+                });
+
+                resultado.textContent = "Has seleccionado " + puntuacionSeleccionada + " estrellas.";
+               
+             // Recuperar la reseña asociada a esta valoración
+                const respuestaResena = await fetch("/api/resenas/valoracion/" + valoracionId);
+
+                const cuadroResena = document.getElementById("textoResena");
+
+                if (respuestaResena.ok) {
+                    const resena = await respuestaResena.json();
+                    resenaActualId = resena.id;
+                    cuadroResena.value = resena.texto;
+                } else {
+                    resenaActualId = null;
+                    cuadroResena.value = "";
+                }
+
+                // Actualizar el contador de palabras
+                cuadroResena.dispatchEvent(new Event("input"));
+                
+                mensaje.textContent = "¡Valoración cargada correctamente!";
+
+            } catch (error) {
+                mensaje.textContent = "No se ha podido conectar con el servidor.";
+            }
+        });
+
+        estrellas.forEach(estrella => {
+            estrella.addEventListener("click", function() {
+                const puntuacion = Number(this.dataset.valor);
+                puntuacionSeleccionada = puntuacion;
+
+                estrellas.forEach(e => {
+                    const valor = Number(e.dataset.valor);
+                    e.classList.toggle("seleccionada", valor <= puntuacion);
+                });
+
+                resultado.textContent = "Has seleccionado " + puntuacion + " estrellas.";
+            });
+        });
+        
+        document.getElementById("guardarValoracion").addEventListener("click", async function() {
+
+            const obraId = Number(document.getElementById("obraId").value);
+            const texto = document.getElementById("textoResena").value.trim();
+            const mensaje = document.getElementById("mensajeGuardado");
+
+            const palabras = texto === "" ? 0 : texto.split(/\s+/).length;
+
+            if (obraCargadaId !== obraId) {
+                mensaje.textContent = "Primero pulsa Cargar valoración para esta obra.";
+                return;
+            }
+            
+            if (!Number.isInteger(obraId) || obraId < 1) {
+                mensaje.textContent = "Introduce un ID de obra válido.";
+                return;
+            }
+
+            if (puntuacionSeleccionada === 0) {
+                mensaje.textContent = "Debes seleccionar las estrellas.";
+                return;
+            }
+
+            if (palabras > 200) {
+                mensaje.textContent = "La reseña no puede superar las 200 palabras.";
+                return;
+            }
+
+            try {
+                // Primero guardamos las estrellas
+               const respuestaValoracion = await fetch(
+   					 valoracionActualId === null
+        				? "/api/valoraciones"
+        				: "/api/valoraciones/" + valoracionActualId,
+   				 {
+       			 method: valoracionActualId === null ? "POST" : "PUT",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(
+                    	    valoracionActualId === null
+                    	        ? { obraId, puntuacion: puntuacionSeleccionada }
+                    	        : { puntuacion: puntuacionSeleccionada }
+                    	)
+                });
+
+                if (!respuestaValoracion.ok) {
+                    mensaje.textContent = "Error al guardar las estrellas.";
+                    return;
+                }
+                
+                const valoracionGuardada = await respuestaValoracion.json();
+                valoracionActualId = valoracionGuardada.id;
+
+                // Si el texto está vacío, terminamos aquí
+                if (texto === "") {
+                    mensaje.textContent = "¡Estrellas guardadas correctamente!";
+                    return;
+                }
+
+                // Si hay texto, guardamos también la reseña
+                const respuestaResena = await fetch(
+    				resenaActualId === null
+       					 ? "/api/resenas"
+       					 : "/api/resenas/" + resenaActualId,
+    				{
+       				 method: resenaActualId === null ? "POST" : "PUT",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(
+                    	    resenaActualId === null
+                    	        ? {
+                    	            obraId,
+                    	            valoracionId: valoracionGuardada.id,
+                    	            texto
+                    	          }
+                    	        : {
+                    	            texto
+                    	          }
+                    	)
+                });
+
+                if (respuestaResena.ok) {
+                	const resenaGuardada = await respuestaResena.json();
+                	resenaActualId = resenaGuardada.id;
+                    mensaje.textContent = "¡Estrellas y reseña guardadas correctamente!";
+                } else {
+                    mensaje.textContent = "Las estrellas se han guardado, pero la reseña no.";
+                }
+
+            } catch (error) {
+                mensaje.textContent = "Error de conexión. Comprueba los datos guardados antes de reintentar.";
+            }
+        });
+        
+        
+        
+        
+        
+        const textoResena = document.getElementById("textoResena");
+        const contadorPalabras = document.getElementById("contadorPalabras");
+
+        textoResena.addEventListener("input", function() {
+            const texto = textoResena.value.trim();
+
+            const palabras = texto === ""
+                ? 0
+                : texto.split(/\s+/).length;
+
+            contadorPalabras.textContent = palabras + " / 200 palabras";
+
+            if (palabras > 200) {
+                contadorPalabras.style.color = "red";
+            } else {
+                contadorPalabras.style.color = "black";
+            }
+        });
+        
+        document.getElementById("eliminarValoracion").addEventListener("click", async function() {
+            const mensaje = document.getElementById("mensajeGuardado");
+
+            if (valoracionActualId === null) {
+                mensaje.textContent = "Primero carga una valoración para eliminarla.";
+                return;
+            }
+
+            const confirmar = confirm("¿Seguro que quieres eliminar las estrellas y la reseña?");
+            if (!confirmar) {
+                return;
+            }
+
+            try {
+                // Primero eliminamos la reseña, si existe
+                if (resenaActualId !== null) {
+                    const respuestaResena = await fetch("/api/resenas/" + resenaActualId, {
+                        method: "DELETE"
+                    });
+
+                    if (!respuestaResena.ok) {
+                        mensaje.textContent = "No se ha podido eliminar la reseña.";
+                        return;
+                    }
+                }
+
+                // Después eliminamos la valoración
+                const respuestaValoracion = await fetch("/api/valoraciones/" + valoracionActualId, {
+                    method: "DELETE"
+                });
+
+                if (!respuestaValoracion.ok) {
+                    mensaje.textContent = "No se ha podido eliminar la valoración.";
+                    return;
+                }
+
+                // Limpiamos el formulario
+                valoracionActualId = null;
+                resenaActualId = null;
+                puntuacionSeleccionada = 0;
+
+                estrellas.forEach(estrella => {
+                    estrella.classList.remove("seleccionada");
+                });
+
+                resultado.textContent = "Todavía no has seleccionado ninguna puntuación.";
+
+                const cuadroResena = document.getElementById("textoResena");
+                cuadroResena.value = "";
+                cuadroResena.dispatchEvent(new Event("input"));
+
+                mensaje.textContent = "¡Valoración y reseña eliminadas correctamente!";
+
+            } catch (error) {
+                mensaje.textContent = "Error de conexión al intentar eliminar.";
+            }
+        });
+        
+    </script>
+
+</body>
+</html>

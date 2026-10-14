@@ -56,4 +56,10 @@ public class ResenaService {
                 "La reseña no puede superar las 200 palabras");
         }
     }
+    
+ // Buscar la reseña asociada a una valoración
+    public Resena obtenerResenaPorValoracion(Long valoracionId) {
+        return resenaRepository.findByValoracionId(valoracionId)
+                .orElse(null);
+    }
 }

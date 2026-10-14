@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Reseñas - GoodreadsPlus</title>
+
+<style>
+body {
+	font-family: Arial, sans-serif;
+	padding: 30px;
+}
+
+textarea {
+	width: 400px;
+	max-width: 100%;
+	height: 150px;
+	padding: 10px;
+}
+
+button {
+	margin-top: 10px;
+	padding: 10px;
+	cursor: pointer;
+}
+</style>
+</head>
+
+<body>
+
+	<h1>Escribir una reseña</h1>
+
+	<label for="obraId">ID de la obra:</label>
+	<input type="number" id="obraId" min="1" value="1">
+
+	<br>
+	<br>
+
+	<label for="textoResena">Tu reseña:</label>
+	<br>
+	<textarea id="textoResena"
+		placeholder="Escribe aquí tu opinión sobre la obra..."></textarea>
+
+	<p id="contador">0 / 200 palabras</p>
+
+	<button id="guardarResena">Guardar reseña</button>
+	<br>
+	<br>
+
+	<label for="resenaId">ID de la reseña que quieres editar:</label>
+	<input type="number" id="resenaId" min="1">
+
+	<br>
+	<br>
+
+	<button id="editarResena">Editar reseña</button>
+	<br>
+	<br>
+
+	<button id="eliminarResena">Eliminar reseña</button>
+
+	<p id="mensaje"></p>
+
+	<script>
+    const textoResena = document.getElementById("textoResena");
+    const contador = document.getElementById("contador");
+
+    textoResena.addEventListener("input", function() {
+        const texto = textoResena.value.trim();
+
+        const palabras = texto === ""
+            ? 0
+            : texto.split(/\s+/).length;
+
+        contador.textContent = palabras + " / 200 palabras";
+
+        if (palabras > 200) {
+            contador.style.color = "red";
+        } else {
+            contador.style.color = "black";
+        }
+    });
+    
+    document.getElementById("guardarResena").addEventListener("click", async function() {
+
+        const obraId = Number(document.getElementById("obraId").value);
+        const texto = textoResena.value.trim();
+        const mensaje = document.getElementById("mensaje");
+
+        const palabras = texto === "" ? 0 : texto.split(/\s+/).length;
+
+        if (!Number.isInteger(obraId) || obraId < 1) {
+            mensaje.textContent = "Introduce un ID de obra válido.";
+            return;
+        }
+
+        if (palabras === 0) {
+            mensaje.textContent = "La reseña no puede estar vacía.";
+            return;
+        }
+
+        if (palabras > 200) {
+            mensaje.textContent = "La reseña no puede superar las 200 palabras.";
+            return;
+        }
+
+        try {
+            const respuesta = await fetch("/api/resenas", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    obraId: obraId,
+                    texto: texto
+                })
+            });
+
+            if (respuesta.ok) {
+                const resenaGuardada = await respuesta.json();
+                mensaje.textContent = "¡Reseña guardada correctamente! ID: " + resenaGuardada.id;
+            } else {
+                mensaje.textContent = "Error al guardar la reseña.";
+            }
+
+        } catch (error) {
+            mensaje.textContent = "No se ha podido conectar con el servidor.";
+        }
+    });
+    
+    document.getElementById("editarResena").addEventListener("click", async function() {
+
+        const resenaId = Number(document.getElementById("resenaId").value);
+        const texto = textoResena.value.trim();
+        const mensaje = document.getElementById("mensaje");
+
+        const palabras = texto === "" ? 0 : texto.split(/\s+/).length;
+
+        if (!Number.isInteger(resenaId) || resenaId < 1) {
+            mensaje.textContent = "Introduce un ID de reseña válido.";
+            return;
+        }
+
+        if (palabras === 0) {
+            mensaje.textContent = "La reseña no puede estar vacía.";
+            return;
+        }
+
+        if (palabras > 200) {
+            mensaje.textContent = "La reseña no puede superar las 200 palabras.";
+            return;
+        }
+
+        try {
+            const respuesta = await fetch("/api/resenas/" + resenaId, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    texto: texto
+                })
+            });
+
+            if (respuesta.ok) {
+                mensaje.textContent = "¡Reseña editada correctamente!";
+            } else {
+                mensaje.textContent = "Error al editar la reseña. Comprueba el ID.";
+            }
+
+        } catch (error) {
+            mensaje.textContent = "No se ha podido conectar con el servidor.";
+        }
+    });
+    document.getElementById("eliminarResena").addEventListener("click", async function() {
+
+        const resenaId = Number(document.getElementById("resenaId").value);
+        const mensaje = document.getElementById("mensaje");
+
+        if (!Number.isInteger(resenaId) || resenaId < 1) {
+            mensaje.textContent = "Introduce un ID de reseña válido.";
+            return;
+        }
+
+        const confirmar = confirm("¿Seguro que quieres eliminar esta reseña?");
+
+        if (!confirmar) {
+            return;
+        }
+
+        try {
+            const respuesta = await fetch("/api/resenas/" + resenaId, {
+                method: "DELETE"
+            });
+
+            if (respuesta.ok) {
+                mensaje.textContent = "¡Reseña eliminada correctamente!";
+            } else {
+                mensaje.textContent = "Error al eliminar la reseña. Comprueba el ID.";
+            }
+
+        } catch (error) {
+            mensaje.textContent = "No se ha podido conectar con el servidor.";
+        }
+    });
+    
+</script>
+</body>
+</html>

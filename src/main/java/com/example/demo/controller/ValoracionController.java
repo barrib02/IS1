@@ -4,6 +4,8 @@ package com.example.demo.controller;
 import com.example.demo.entity.Valoracion;
 import com.example.demo.service.ValoracionService;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.http.ResponseEntity;
 
 import org.springframework.web.bind.annotation.*;
 
@@ -16,6 +18,13 @@ public class ValoracionController {
     public ValoracionController(ValoracionService valoracionService) {
         this.valoracionService = valoracionService;
     }
+    
+ // Buscar la valoración más reciente de una obra
+    @GetMapping("/obra/{obraId}")
+    public Valoracion obtenerValoracionPorObra(@PathVariable Long obraId) {
+        return valoracionService.obtenerValoracionPorObra(obraId);
+    }
+    
 
     // Crear valoración
     @PostMapping
@@ -23,6 +32,12 @@ public class ValoracionController {
         return valoracionService.crearValoracion(valoracion);
     }
 
+ // Consultar una valoración por su ID
+    @GetMapping("/{id}")
+    public Valoracion obtenerValoracion(@PathVariable Long id) {
+        return valoracionService.obtenerValoracion(id);
+    }
+    
     // Editar valoración
     @PutMapping("/{id}")
     public Valoracion editarValoracion(
@@ -36,5 +51,11 @@ public class ValoracionController {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public String manejarError(IllegalArgumentException error) {
         return error.getMessage();
+    }
+    
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> eliminarValoracion(@PathVariable Long id) {
+        valoracionService.eliminarValoracion(id);
+        return ResponseEntity.noContent().build();
     }
 }

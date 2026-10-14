@@ -20,6 +20,8 @@ public class ValoracionService {
         valoracion.setId(null);
         return valoracionRepository.save(valoracion);
     }
+    
+    
 
     // Editar una valoración existente
     public Valoracion editarValoracion(Long id, Integer puntuacion) {
@@ -34,6 +36,21 @@ public class ValoracionService {
 
         return valoracionRepository.save(valoracion);
     }
+    // Consultar una valoración por su ID
+    public Valoracion obtenerValoracion(Long id) {
+        return valoracionRepository.findById(id)
+                .orElseThrow(() ->
+                    new IllegalArgumentException("Valoración no encontrada"));
+    }
+    
+ // Buscar la valoración más reciente de una obra
+    public Valoracion obtenerValoracionPorObra(Long obraId) {
+        return valoracionRepository
+                .findFirstByObraIdOrderByIdDesc(obraId)
+                .orElse(null);
+    }
+    
+    
 
     // Validar puntuación entre 0 y 5
     private void validarPuntuacion(Integer puntuacion) {
@@ -42,5 +59,12 @@ public class ValoracionService {
             throw new IllegalArgumentException(
                 "La puntuación debe estar entre 0 y 5 estrellas");
         }
+    }
+    public void eliminarValoracion(Long id) {
+        if (!valoracionRepository.existsById(id)) {
+            throw new IllegalArgumentException("La valoración no existe.");
+        }
+
+        valoracionRepository.deleteById(id);
     }
 }

@@ -17,6 +17,7 @@ public class Resena {
     private Long id;
 
     private Long obraId;
+    private Long valoracionId;
 
     @Column(columnDefinition = "TEXT")
     private String texto;
@@ -54,5 +55,13 @@ public class Resena {
 
     public void setTexto(String texto) {
         this.texto = texto;
+    }
+    
+    public Long getValoracionId() {
+        return valoracionId;
+    }
+
+    public void setValoracionId(Long valoracionId) {
+        this.valoracionId = valoracionId;
     }
 }

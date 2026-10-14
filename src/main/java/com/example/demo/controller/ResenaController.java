@@ -6,6 +6,7 @@ import com.example.demo.service.ResenaService;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.ResponseEntity;
 
 @RestController
 @RequestMapping("/api/resenas")
@@ -45,5 +46,18 @@ public class ResenaController {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public String manejarError(IllegalArgumentException error) {
         return error.getMessage();
+    }
+ // Consultar la reseña asociada a una valoración
+    @GetMapping("/valoracion/{valoracionId}")
+    public ResponseEntity<Resena> obtenerResenaPorValoracion(
+            @PathVariable Long valoracionId) {
+
+        Resena resena = resenaService.obtenerResenaPorValoracion(valoracionId);
+
+        if (resena == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        return ResponseEntity.ok(resena);
     }
 }
