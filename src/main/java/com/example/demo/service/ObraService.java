@@ -1,71 +1,58 @@
 package com.example.demo.service;
 
-import com.example.demo.entity.Obra;
-import com.example.demo.entity.TipoObra;
-import com.example.demo.entity.EstadoObra;
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
+import com.example.demo.entity.EstadoObra;
+import com.example.demo.entity.Obra;
+import com.example.demo.repository.ObraRepository;
 
 @Service
 public class ObraService {
 
-	private final List<Obra> obras = new ArrayList<>();
+    @Autowired
+    private ObraRepository obraRepository;
 
-	public ObraService() {
+    public List<Obra> getObras() {
+        return obraRepository.findAll();
+    }
 
-		obras.add(new Obra(1L, "El Señor de los Anillos", "J.R.R. Tolkien", "", TipoObra.LIBRO, EstadoObra.PENDIENTE));
+    public List<Obra> buscarPorTitulo(String texto) {
+        return obraRepository
+                .findByTituloContainingIgnoreCase(texto);
+    }
 
-		obras.add(new Obra(2L, "Breaking Bad", "Vince Gilligan", "", TipoObra.SERIE, EstadoObra.EN_CURSO));
+    public EstadoObra obtenerEstado(Long id) {
 
-		obras.add(new Obra(3L, "The Witcher 3", "CD Projekt Red", "", TipoObra.VIDEOJUEGO, EstadoObra.COMPLETADA));
-	}
+        Obra obra =
+            obraRepository.findById(id)
+            .orElse(null);
 
-	public List<Obra> getObras() {
-		return obras;
-	}
-	
-	public List<Obra> buscarPorTitulo(String texto) {
+        if (obra == null) {
+            return null;
+        }
 
-	    List<Obra> resultados = new ArrayList<>();
+        return obra.getEstado();
+    }
 
-	    for (Obra obra : obras) {
+    public boolean cambiarEstado(
+            Long id,
+            EstadoObra nuevoEstado) {
 
-	        if (obra.getTitulo().toLowerCase()
-	                .contains(texto.toLowerCase())) {
+        Obra obra =
+            obraRepository.findById(id)
+            .orElse(null);
 
-	            resultados.add(obra);
-	        }
-	    }
+        if (obra == null) {
+            return false;
+        }
 
-	    return resultados;
-	}
-	
-	public EstadoObra obtenerEstado(Long id) {
+        obra.setEstado(nuevoEstado);
 
-	    for (Obra obra : obras) {
+        obraRepository.save(obra);
 
-	        if (obra.getId().equals(id)) {
-	            return obra.getEstado();
-	        }
-	    }
-
-	    return null;
-	}
-	
-	public boolean cambiarEstado(Long id, EstadoObra nuevoEstado) {
-
-	    for (Obra obra : obras) {
-
-	        if (obra.getId().equals(id)) {
-	            obra.setEstado(nuevoEstado);
-	            return true;
-	        }
-	    }
-
-	    return false;
-	}
-	
-	
+        return true;
+    }
 }

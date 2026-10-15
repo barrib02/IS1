@@ -1,13 +1,25 @@
 package com.example.demo.entity;
+import jakarta.persistence.*;
 
+
+@Entity
+@Table(name = "obras")
 public class Obra {
 
-	private Long id;
-	private String titulo;
-	private String autor;
-	private String descripcion;
-	private TipoObra tipo;
-	private EstadoObra estado;
+	
+	@Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private String titulo;
+    private String autor;
+    private String descripcion;
+
+    @Enumerated(EnumType.STRING)
+    private TipoObra tipo;
+
+    @Enumerated(EnumType.STRING)
+    private EstadoObra estado;
 
 	public Obra(Long id, String titulo, String autor, String descripcion, TipoObra tipo, EstadoObra estado) {
 		this.id = id;
@@ -17,6 +29,8 @@ public class Obra {
 		this.tipo = tipo;
 		this.estado = estado;
 	}
+	
+	public Obra() {}
 
 	public Long getId() {
 		return id;
