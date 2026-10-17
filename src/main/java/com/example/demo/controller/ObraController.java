@@ -34,4 +34,21 @@ public class ObraController {
 		return obraService.getObras().stream().filter(o -> o.getId().equals(id)).findFirst().orElse(null);
 	}
 
+	@PutMapping("/work/{id}/estado")
+	public Obra cambiarEstado(
+	        @PathVariable Long id,
+	        @RequestParam EstadoObra estado) {
+
+	    Obra obra = obraService.getObras().stream()
+	            .filter(o -> o.getId().equals(id))
+	            .findFirst()
+	            .orElse(null);
+
+	    if (obra != null) {
+	        obra.setEstado(estado);
+	    }
+
+	    return obra;
+	}
+
 }
