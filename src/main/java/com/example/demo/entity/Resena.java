@@ -18,6 +18,7 @@ public class Resena {
 
     private Long obraId;
     private Long valoracionId;
+    private Long usuarioId;
 
     @Column(columnDefinition = "TEXT")
     private String texto;
@@ -27,10 +28,11 @@ public class Resena {
     }
 
     // Constructor con parámetros
-    public Resena(Long id, Long obraId, String texto) {
+    public Resena(Long id, Long obraId, String texto, Long usuario) {
         this.id = id;
         this.obraId = obraId;
         this.texto = texto;
+        this.usuarioId=usuario;
     }
 
     public Long getId() {
@@ -64,4 +66,12 @@ public class Resena {
     public void setValoracionId(Long valoracionId) {
         this.valoracionId = valoracionId;
     }
+    public Long getUsuarioId() {
+    	return this.usuarioId;
+    }
+    
+    public void setUsuarioId(Long usuario) {
+    	this.usuarioId=usuario;
+    }
+    
 }

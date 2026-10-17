@@ -1,36 +1,44 @@
 package com.example.demo.entity;
-import jakarta.persistence.*;
 
+import java.util.HashSet;
+import java.util.Set;
+import jakarta.persistence.*;
+import jakarta.persistence.Column;
 
 @Entity
 @Table(name = "obras")
 public class Obra {
 
-	
 	@Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-    private String titulo;
-    private String autor;
-    private String descripcion;
+	private String titulo;
+	private String autor;
+	@Column(columnDefinition = "TEXT")
+	private String descripcion;
 
-    @Enumerated(EnumType.STRING)
-    private TipoObra tipo;
+	@Enumerated(EnumType.STRING)
+	private TipoObra tipo;
+	
 
-    @Enumerated(EnumType.STRING)
-    private EstadoObra estado;
+	@ElementCollection(targetClass = GeneroObra.class)
+	@Enumerated(EnumType.STRING)
+	@CollectionTable(name = "obra_generos", joinColumns = @JoinColumn(name = "obra_id"))
+	@Column(name = "genero")
+	private Set<GeneroObra> generos = new HashSet<>();
 
-	public Obra(Long id, String titulo, String autor, String descripcion, TipoObra tipo, EstadoObra estado) {
+	public Obra() {
+	}
+
+	public Obra(Long id, String titulo, String autor, String descripcion, TipoObra tipo, Set<GeneroObra> generos) {
 		this.id = id;
 		this.titulo = titulo;
 		this.autor = autor;
 		this.descripcion = descripcion;
 		this.tipo = tipo;
-		this.estado = estado;
+		this.generos = generos;
 	}
-	
-	public Obra() {}
 
 	public Long getId() {
 		return id;
@@ -72,11 +80,12 @@ public class Obra {
 		this.tipo = tipo;
 	}
 
-	public EstadoObra getEstado() {
-		return estado;
+
+	public Set<GeneroObra> getGeneros() {
+	    return generos;
 	}
 
-	public void setEstado(EstadoObra estado) {
-		this.estado = estado;
+	public void setGeneros(Set<GeneroObra> generos) {
+	    this.generos = generos;
 	}
 }

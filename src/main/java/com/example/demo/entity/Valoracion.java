@@ -17,16 +17,18 @@ public class Valoracion {
 
     private Long obraId;
     private Integer puntuacion;
+    private Long usuarioId;
 
     // Constructor vacío necesario para JPA
     public Valoracion() {
     }
 
     // Constructor con parámetros
-    public Valoracion(Long id, Long obraId, Integer puntuacion) {
+    public Valoracion(Long id, Long obraId, Integer puntuacion, Long usuario) {
         this.id = id;
         this.obraId = obraId;
         this.puntuacion = puntuacion;
+        this.usuarioId=usuario;
     }
 
     public Long getId() {
@@ -52,4 +54,13 @@ public class Valoracion {
     public void setPuntuacion(Integer puntuacion) {
         this.puntuacion = puntuacion;
     }
+    
+    public Long getUsuarioId() {
+    	return this.usuarioId;
+    }
+    
+    public void setUsuarioId(Long usuario) {
+    	this.usuarioId=usuario;
+    }
+    
 }

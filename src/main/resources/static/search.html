@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Buscador</title>
+</head>
+<body>
+
+<h1>Buscar obras</h1>
+
+<input
+    type="text"
+    id="titulo"
+    placeholder="Buscar obra">
+
+<button id="buscar">
+    Buscar
+</button>
+
+<hr>
+
+<div id="resultados"></div>
+
+<script>
+
+document.getElementById("buscar")
+.addEventListener("click", buscar);
+
+async function buscar() {
+
+    const titulo =
+        document.getElementById("titulo").value;
+
+    const respuesta =
+        await fetch(
+            "/search?titulo="
+            + encodeURIComponent(titulo)
+        );
+
+    const obras =
+        await respuesta.json();
+
+    mostrarResultados(obras);
+}
+
+function mostrarResultados(obras) {
+
+    const div =
+        document.getElementById("resultados");
+
+    div.innerHTML = "";
+
+    if(obras.length === 0){
+
+        div.innerHTML =
+            "<p>No se encontraron resultados</p>";
+
+        return;
+    }
+
+    obras.forEach(obra => {
+
+        div.innerHTML +=
+        `
+        <div>
+
+			<h3>
+			    <a href="/work.html?id=${obra.id}">
+			        ${obra.titulo}
+			    </a>
+			</h3>
+
+            <p>${obra.tipo}</p>
+
+        </div>
+        <hr>
+        `;
+    });
+}
+
+</script>
+
+</body>
+</html>
