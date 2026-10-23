@@ -45,7 +45,7 @@ public class ObraController {
 	            .orElse(null);
 
 	    if (obra != null) {
-	        obra.setEstado(estado);
+	        //obra.setEstado(estado);
 	    }
 
 	    return obra;
