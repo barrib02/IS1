@@ -1,6 +1,7 @@
 package com.example.demo.controller;
 
 import java.util.List;
+import com.example.demo.entity.TipoObra;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,11 +23,25 @@ public class ObraController {
 	}
 
 	
+//	@GetMapping("/search")
+//	public List<Obra> buscar(
+//	        @RequestParam String titulo) {
+//
+//	    return obraService.buscarPorTitulo(titulo);
+//	}
+	
 	@GetMapping("/search")
 	public List<Obra> buscar(
-	        @RequestParam String titulo) {
 
-	    return obraService.buscarPorTitulo(titulo);
+	        @RequestParam(required = false)
+	        String titulo,
+
+	        @RequestParam(required = false)
+	        TipoObra tipo) {
+
+	    return obraService.buscar(
+	            titulo,
+	            tipo);
 	}
 
 	@GetMapping("/work/{id}")
