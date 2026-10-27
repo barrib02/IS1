@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Buscador</title>
+</head>
+<body>
+
+	<h1>Buscar obras</h1>
+
+	<input type="text" id="titulo" placeholder="Buscar obra">
+
+	<button id="buscar">Buscar</button>
+
+	<br>
+	<br>
+
+	<select id="tipo">
+
+		<option value="">Todos</option>
+
+		<option value="LIBRO">Libro</option>
+
+		<option value="PELICULA">Película</option>
+
+		<option value="SERIE">Serie</option>
+
+		<option value="VIDEOJUEGO">Videojuego</option>
+
+	</select>
+
+	<hr>
+
+	<div id="resultados"></div>
+
+	<script>
+
+document.getElementById("buscar")
+.addEventListener("click", buscar);
+
+async function buscar() {
+
+    const titulo =
+        document.getElementById("titulo").value;
+
+    const tipo =
+        document.getElementById("tipo").value;
+
+    const respuesta =
+        await fetch(
+            "/search?titulo="
+            + encodeURIComponent(titulo)
+            + "&tipo="
+            + encodeURIComponent(tipo)
+        );
+
+    const obras =
+        await respuesta.json();
+
+    mostrarResultados(obras);
+}
+
+function mostrarResultados(obras) {
+
+    const div =
+        document.getElementById("resultados");
+
+    div.innerHTML = "";
+
+    if(obras.length === 0){
+
+        div.innerHTML =
+            "<p>No se encontraron resultados</p>";
+
+        return;
+    }
+
+    obras.forEach(obra => {
+
+        div.innerHTML +=
+        `
+        <div>
+
+			<h3>
+			    <a href="/work.html?id=${obra.id}">
+			        ${obra.titulo}
+			    </a>
+			</h3>
+
+            <p>${obra.tipo}</p>
+
+        </div>
+        <hr>
+        `;
+    });
+}
+
+</script>
+
+</body>
+</html>
