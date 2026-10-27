@@ -67,4 +67,8 @@ public class ValoracionService {
 
         valoracionRepository.deleteById(id);
     }
+    
+    public Valoracion obtenerValoracionPorUsuarioYObra(Long usuarioId, Long obraId) {
+        return valoracionRepository.findByUsuarioIdAndObraId(usuarioId, obraId).orElse(null);
+    }
 }

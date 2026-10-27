@@ -47,5 +47,9 @@ public class ObraService {
 
 		return obraRepository.findAll();
 	}
+	
+	public Obra obtenerPorId(Long id) {
+	    return obraRepository.findById(id).orElse(null);
+	}
 
 }

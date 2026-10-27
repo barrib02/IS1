@@ -58,4 +58,16 @@ public class ValoracionController {
         valoracionService.eliminarValoracion(id);
         return ResponseEntity.noContent().build();
     }
+    
+    @GetMapping("/obra/{obraId}/usuario/{usuarioId}")
+    public ResponseEntity<Valoracion> obtenerValoracionPorUsuarioYObra(
+            @PathVariable Long obraId, 
+            @PathVariable Long usuarioId) {
+        
+        Valoracion valoracion = valoracionService.obtenerValoracionPorUsuarioYObra(usuarioId, obraId);
+        if (valoracion == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(valoracion);
+    }
 }

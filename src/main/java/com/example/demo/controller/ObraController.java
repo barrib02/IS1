@@ -3,6 +3,7 @@ package com.example.demo.controller;
 import java.util.List;
 import com.example.demo.entity.TipoObra;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -22,48 +23,40 @@ public class ObraController {
 		this.obraService = obraService;
 	}
 
-	
-//	@GetMapping("/search")
-//	public List<Obra> buscar(
-//	        @RequestParam String titulo) {
-//
-//	    return obraService.buscarPorTitulo(titulo);
-//	}
-	
 	@GetMapping("/search")
 	public List<Obra> buscar(
+	        @RequestParam(required = false) String titulo,
+	        @RequestParam(required = false) TipoObra tipo) {
 
-	        @RequestParam(required = false)
-	        String titulo,
-
-	        @RequestParam(required = false)
-	        TipoObra tipo) {
-
-	    return obraService.buscar(
-	            titulo,
-	            tipo);
+	    return obraService.buscar(titulo, tipo);
 	}
 
 	@GetMapping("/work/{id}")
-	public Obra obtenerObra(@PathVariable Long id) {
-		return obraService.getObras().stream().filter(o -> o.getId().equals(id)).findFirst().orElse(null);
+	public ResponseEntity<Obra> obtenerObra(@PathVariable Long id) {
+		// Búsqueda directa y segura por ID en la base de datos
+		Obra obra = obraService.obtenerPorId(id);
+		
+		if (obra == null) {
+            return ResponseEntity.notFound().build(); // Devuelve 404 real si no existe
+        }
+        
+        return ResponseEntity.ok(obra); // Devuelve 200 OK con el JSON de la obra
 	}
 
 	@PutMapping("/work/{id}/estado")
-	public Obra cambiarEstado(
+	public ResponseEntity<Obra> cambiarEstado(
 	        @PathVariable Long id,
 	        @RequestParam EstadoObra estado) {
 
-	    Obra obra = obraService.getObras().stream()
-	            .filter(o -> o.getId().equals(id))
-	            .findFirst()
-	            .orElse(null);
+	    Obra obra = obraService.obtenerPorId(id);
 
 	    if (obra != null) {
-	        //obra.setEstado(estado);
+	        // obra.setEstado(estado); // Descomenta cuando implementes el campo estado en la entidad
+	    } else {
+	        return ResponseEntity.notFound().build();
 	    }
 
-	    return obra;
+	    return ResponseEntity.ok(obra);
 	}
 
 }

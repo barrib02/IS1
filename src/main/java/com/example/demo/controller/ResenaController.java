@@ -60,4 +60,16 @@ public class ResenaController {
 
         return ResponseEntity.ok(resena);
     }
+    
+    @GetMapping("/obra/{obraId}/usuario/{usuarioId}")
+    public ResponseEntity<Resena> obtenerResenaPorUsuarioYObra(
+            @PathVariable Long obraId, 
+            @PathVariable Long usuarioId) {
+        
+        Resena resena = resenaService.obtenerResenaPorUsuarioYObra(usuarioId, obraId);
+        if (resena == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(resena);
+    }
 }

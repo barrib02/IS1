@@ -62,4 +62,8 @@ public class ResenaService {
         return resenaRepository.findByValoracionId(valoracionId)
                 .orElse(null);
     }
+    
+    public Resena obtenerResenaPorUsuarioYObra(Long usuarioId, Long obraId) {
+        return resenaRepository.findByUsuarioIdAndObraId(usuarioId, obraId).orElse(null);
+    }
 }
