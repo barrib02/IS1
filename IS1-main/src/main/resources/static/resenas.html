@@ -61,6 +61,7 @@ button {
 	<p id="mensaje"></p>
 
 	<script>
+	const usuarioId = 1;
     const textoResena = document.getElementById("textoResena");
     const contador = document.getElementById("contador");
 
@@ -111,6 +112,7 @@ button {
                 },
                 body: JSON.stringify({
                     obraId: obraId,
+					usuarioId: usuarioId,
                     texto: texto
                 })
             });

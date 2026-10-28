@@ -76,6 +76,7 @@ body {
 	<p id="mensajeGuardado"></p>
 
 	<script>
+		const usuarioId = 1;
         const estrellas = document.querySelectorAll(".estrella");
         const resultado = document.getElementById("resultado");
         let puntuacionSeleccionada = 0;
@@ -115,7 +116,13 @@ body {
             }
 
             try {
-            	const respuesta = await fetch("/api/valoraciones/obra/" + obraId);
+				const respuesta = await fetch(
+				    "/api/valoraciones/obra/" +
+				    obraId +
+				    "/usuario/" +
+				    usuarioId
+				);
+
             	if (respuesta.ok) {
             	    obraCargadaId = obraId;
             	}
@@ -158,8 +165,13 @@ body {
 
                 resultado.textContent = "Has seleccionado " + puntuacionSeleccionada + " estrellas.";
                
-             // Recuperar la reseña asociada a esta valoración
-                const respuestaResena = await fetch("/api/resenas/valoracion/" + valoracionId);
+				// Recuperar la reseña del usuario para esta obra
+				const respuestaResena = await fetch(
+				    "/api/resenas/obra/" +
+				    obraId +
+				    "/usuario/" +
+				    usuarioId
+				);
 
                 const cuadroResena = document.getElementById("textoResena");
 
@@ -235,11 +247,17 @@ body {
                     headers: {
                         "Content-Type": "application/json"
                     },
-                    body: JSON.stringify(
-                    	    valoracionActualId === null
-                    	        ? { obraId, puntuacion: puntuacionSeleccionada }
-                    	        : { puntuacion: puntuacionSeleccionada }
-                    	)
+					body: JSON.stringify(
+					    valoracionActualId === null
+					        ? {
+					            usuarioId,
+					            obraId,
+					            puntuacion: puntuacionSeleccionada
+					          }
+					        : {
+					            puntuacion: puntuacionSeleccionada
+					          }
+					)
                 });
 
                 if (!respuestaValoracion.ok) {
@@ -266,17 +284,18 @@ body {
                     headers: {
                         "Content-Type": "application/json"
                     },
-                    body: JSON.stringify(
-                    	    resenaActualId === null
-                    	        ? {
-                    	            obraId,
-                    	            valoracionId: valoracionGuardada.id,
-                    	            texto
-                    	          }
-                    	        : {
-                    	            texto
-                    	          }
-                    	)
+					body: JSON.stringify(
+					    resenaActualId === null
+					        ? {
+					            usuarioId,
+					            obraId,
+					            valoracionId: valoracionGuardada.id,
+					            texto
+					          }
+					        : {
+					            texto
+					          }
+					)
                 });
 
                 if (respuestaResena.ok) {
