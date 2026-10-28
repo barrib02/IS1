@@ -79,6 +79,8 @@ button:hover {
 
 <div id="contenido"></div>
 
+<div id="acciones" class="tarjeta" style="margin-top:20px"></div>
+
 <script>
 // 1. Obtener el ID de la obra desde la URL
 const urlParams = new URLSearchParams(window.location.search);
@@ -244,6 +246,168 @@ async function guardarValoracionYResena() {
 }
 
 cargarTodo();
+</script>
+
+<script>
+(function () {
+
+    const obraId = Number(
+        new URLSearchParams(window.location.search).get("id"));
+
+    const caja = document.getElementById("acciones");
+
+    // Llama a la API y devuelve estado y datos, sin redirigir.
+    async function llamar(url, opciones) {
+        const respuesta = await fetch(
+            url,
+            Object.assign({ credentials: "same-origin" }, opciones));
+
+        const texto = await respuesta.text();
+        let datos = null;
+
+        if (texto) {
+            try {
+                datos = JSON.parse(texto);
+            } catch (e) {
+                datos = texto;
+            }
+        }
+
+        return { ok: respuesta.ok, status: respuesta.status, datos: datos };
+    }
+
+    function crear(etiqueta, texto) {
+        const el = document.createElement(etiqueta);
+        if (texto !== undefined) {
+            el.textContent = texto;
+        }
+        return el;
+    }
+
+    async function iniciar() {
+
+        if (!Number.isInteger(obraId) || obraId < 1) {
+            return;
+        }
+
+        const favoritos = await llamar("/api/favoritos");
+
+        // Sin sesión: la ficha sigue siendo pública, pero avisamos.
+        if (favoritos.status === 401 || favoritos.status === 403) {
+            const aviso = crear("p", "Inicia sesión para fijar esta obra "
+                + "como favorita o añadirla a tus listas. ");
+            const enlace = crear("a", "Iniciar sesión");
+            enlace.href = "login.html";
+            aviso.appendChild(enlace);
+            caja.appendChild(aviso);
+            return;
+        }
+
+        const mensaje = crear("p");
+        mensaje.style.fontWeight = "bold";
+
+        function mostrar(texto, correcto) {
+            mensaje.textContent = texto;
+            mensaje.style.color = correcto ? "green" : "red";
+        }
+
+        // ----- Favorito -----
+
+        let esFavorita = Array.isArray(favoritos.datos)
+            && favoritos.datos.some(f => f.obraId === obraId);
+
+        const botonFav = crear("button");
+        botonFav.type = "button";
+        botonFav.style.cursor = "pointer";
+
+        function textoBotonFav() {
+            botonFav.textContent = esFavorita
+                ? "⭐ Quitar de favoritos"
+                : "☆ Fijar como favorita";
+        }
+
+        textoBotonFav();
+
+        botonFav.addEventListener("click", async function () {
+            const resultado = await llamar("/api/favoritos/" + obraId,
+                { method: esFavorita ? "DELETE" : "POST" });
+
+            if (resultado.ok) {
+                esFavorita = !esFavorita;
+                textoBotonFav();
+                mostrar(esFavorita
+                    ? "Obra fijada como favorita."
+                    : "Obra quitada de favoritos.", true);
+            } else {
+                mostrar(typeof resultado.datos === "string"
+                    ? resultado.datos
+                    : "No se ha podido completar la acción.", false);
+            }
+        });
+
+        caja.appendChild(botonFav);
+
+        // ----- Listas -----
+
+        caja.appendChild(crear("h3", "Añadir a mis listas"));
+
+        const listas = await llamar("/api/listas/obra/" + obraId);
+
+        if (!listas.ok || !Array.isArray(listas.datos)
+                || listas.datos.length === 0) {
+
+            const vacio = crear("p", "Todavía no tienes listas. ");
+            const enlace = crear("a", "Créalas en tu perfil");
+            enlace.href = "perfil.html";
+            vacio.appendChild(enlace);
+            caja.appendChild(vacio);
+
+        } else {
+            listas.datos.forEach(lista => {
+                const etiqueta = crear("label");
+                etiqueta.style.display = "block";
+                etiqueta.style.margin = "6px 0";
+
+                const casilla = document.createElement("input");
+                casilla.type = "checkbox";
+                casilla.checked = lista.contieneObra;
+
+                // Cada clic se guarda al momento (sin botón Guardar).
+                casilla.addEventListener("change", async function () {
+                    const resultado = await llamar(
+                        "/api/listas/" + lista.id + "/obras/" + obraId,
+                        { method: casilla.checked ? "POST" : "DELETE" });
+
+                    if (resultado.ok) {
+                        mostrar(casilla.checked
+                            ? "Añadida a \"" + lista.nombre + "\"."
+                            : "Quitada de \"" + lista.nombre + "\".", true);
+                    } else {
+                        // Si falla, devolvemos la casilla a su estado.
+                        casilla.checked = !casilla.checked;
+                        mostrar(typeof resultado.datos === "string"
+                            ? resultado.datos
+                            : "No se ha podido guardar el cambio.", false);
+                    }
+                });
+
+                etiqueta.appendChild(casilla);
+                etiqueta.appendChild(
+                    document.createTextNode(" " + lista.nombre));
+                caja.appendChild(etiqueta);
+            });
+        }
+
+        caja.appendChild(mensaje);
+
+        const enlacePerfil = crear("a", "Ir a mi perfil");
+        enlacePerfil.href = "perfil.html";
+        caja.appendChild(enlacePerfil);
+    }
+
+    iniciar();
+
+})();
 </script>
 
 </body>

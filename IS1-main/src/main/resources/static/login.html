@@ -1,0 +1,251 @@
+login.html: 
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Iniciar sesión - GoodreadsPlus1</title>
+
+    <style>
+        /* Estilo general de la página */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f3ef;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        /* Contenedor del formulario */
+        .contenedor {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            width: 350px;
+            max-width: 90%;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #382110;
+        }
+
+        label {
+            display: block;
+            margin-top: 15px;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            box-sizing: border-box;
+        }
+
+        /* Contenedor de la contraseña y el ojito */
+        .password-container {
+            position: relative;
+        }
+
+        /* Dejamos espacio para el icono */
+        .password-container input {
+            padding-right: 45px;
+        }
+
+        /* Botón del ojito */
+        .password-toggle {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 36px;
+            height: 36px;
+            padding: 0;
+            margin: 2px 0 0;
+            background: transparent;
+            color: #382110;
+            border: none;
+            cursor: pointer;
+            font-size: 20px;
+            touch-action: none;
+        }
+
+        .password-toggle:hover {
+            background: transparent;
+            color: #409d69;
+        }
+
+        /* Botón principal del formulario */
+        button[type="submit"] {
+            width: 100%;
+            padding: 12px;
+            margin-top: 20px;
+            background-color: #409d69;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button[type="submit"]:hover {
+            background-color: #327b52;
+        }
+
+        #mensaje {
+            text-align: center;
+            margin-top: 15px;
+        }
+
+        .enlace {
+            text-align: center;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="contenedor">
+
+        <h1>Iniciar sesión</h1>
+
+        <!-- Formulario para acceder a la cuenta -->
+        <form id="formLogin">
+
+            <label for="email">Correo electrónico</label>
+            <input type="email" id="email"
+                   autocomplete="email" required>
+
+            <label for="password">Contraseña</label>
+
+            <!-- Campo de contraseña con ojito -->
+            <div class="password-container">
+                <input type="password" id="password"
+                       autocomplete="current-password" required>
+
+                <!-- Solo muestra la contraseña mientras se pulsa -->
+                <button type="button"
+                        id="mostrarPassword"
+                        class="password-toggle"
+                        aria-label="Mantener pulsado para mostrar contraseña"
+                        aria-pressed="false">👁️</button>
+            </div>
+
+            <button type="submit">Entrar</button>
+
+        </form>
+
+        <!-- Mensajes del inicio de sesión -->
+        <p id="mensaje" role="status" aria-live="polite"></p>
+
+        <div class="enlace">
+            ¿No tienes cuenta?
+            <a href="registro.html">Regístrate aquí</a>
+        </div>
+
+    </div>
+
+    <script>
+        // Detectamos cuando se envía el formulario.
+        document.getElementById("formLogin")
+            .addEventListener("submit", async function(event) {
+
+            // Evitamos que la página se recargue.
+            event.preventDefault();
+
+            // Recogemos las credenciales introducidas.
+            const credenciales = {
+                email: document.getElementById("email").value,
+                password: document.getElementById("password").value
+            };
+
+            const mensaje = document.getElementById("mensaje");
+
+            try {
+                // Enviamos las credenciales al backend.
+                const respuesta = await fetch("/api/auth/login", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    credentials: "same-origin",
+                    body: JSON.stringify(credenciales)
+                });
+
+                const texto = await respuesta.text();
+
+                if (respuesta.ok) {
+                    // Informamos de que el login ha sido correcto.
+                    mensaje.style.color = "green";
+                    mensaje.textContent = texto;
+
+                    // H6.2 - Redirigimos al buscador de obras.
+                    // La sesión se conserva gracias a la cookie
+                    // de sesión gestionada por Spring Security.
+                    window.location.href = "/search.html";
+
+                } else {
+                    // Si las credenciales son incorrectas,
+                    // mostramos el error y permanecemos aquí.
+                    mensaje.style.color = "red";
+                    mensaje.textContent = texto;
+                }
+
+            } catch (error) {
+                mensaje.style.color = "red";
+                mensaje.textContent =
+                    "No se pudo conectar con el servidor.";
+            }
+        });
+
+        // MOSTRAR Y OCULTAR CONTRASEÑA
+
+        const passwordInput =
+            document.getElementById("password");
+
+        const botonOjo =
+            document.getElementById("mostrarPassword");
+
+        // Muestra la contraseña mientras se mantiene pulsado.
+        function mostrarPassword() {
+            passwordInput.type = "text";
+            botonOjo.setAttribute("aria-pressed", "true");
+        }
+
+        // Oculta la contraseña al soltar el botón.
+        function ocultarPassword() {
+            passwordInput.type = "password";
+            botonOjo.setAttribute("aria-pressed", "false");
+        }
+
+        // Funciona con ratón y pantallas táctiles.
+        botonOjo.addEventListener("pointerdown", function(event) {
+            event.preventDefault();
+            botonOjo.setPointerCapture(event.pointerId);
+            mostrarPassword();
+        });
+
+        botonOjo.addEventListener("pointerup", ocultarPassword);
+        botonOjo.addEventListener("pointercancel", ocultarPassword);
+        botonOjo.addEventListener("lostpointercapture", ocultarPassword);
+
+        // También funciona manteniendo Espacio o Enter.
+        botonOjo.addEventListener("keydown", function(event) {
+            if (event.key === " " || event.key === "Enter") {
+                event.preventDefault();
+                mostrarPassword();
+            }
+        });
+
+        botonOjo.addEventListener("keyup", ocultarPassword);
+        botonOjo.addEventListener("blur", ocultarPassword);
+
+    </script>
+
+</body>
+</html>

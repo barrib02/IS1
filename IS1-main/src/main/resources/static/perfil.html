@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mi perfil - Shelfie</title>
+
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background-color: #f5f3ef;
+        color: #382110;
+        margin: 0;
+        padding: 20px;
+    }
+
+    .pagina {
+        max-width: 900px;
+        margin: auto;
+    }
+
+    .cabecera {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+
+    .tarjeta {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    h1, h2, h3 { margin-top: 0; }
+
+    textarea, input[type="text"], select {
+        width: 100%;
+        padding: 10px;
+        box-sizing: border-box;
+        font-family: inherit;
+    }
+
+    textarea { height: 110px; resize: vertical; }
+
+    button {
+        padding: 8px 12px;
+        border: none;
+        border-radius: 5px;
+        background-color: #409d69;
+        color: white;
+        cursor: pointer;
+    }
+
+    button:hover { background-color: #327b52; }
+    button.secundario { background-color: #8a7a6b; }
+    button.secundario:hover { background-color: #6e6054; }
+    button.peligro { background-color: #c0392b; }
+    button.peligro:hover { background-color: #962d22; }
+    button:disabled { opacity: 0.4; cursor: default; }
+
+    .contador { text-align: right; font-size: 14px; margin: 5px 0 10px; }
+    .contador.excedido { color: red; }
+
+    .bloque { margin-bottom: 25px; }
+    .vacio { color: #8a7a6b; font-style: italic; }
+
+    .fav, .lista {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        padding: 10px;
+        margin-bottom: 8px;
+        border: 1px solid #e3ddd3;
+        border-left: 5px solid #409d69;
+        border-radius: 6px;
+        background: #fbfaf7;
+    }
+
+    .fav .posicion {
+        font-weight: bold;
+        font-size: 18px;
+        min-width: 24px;
+    }
+
+    .fav .titulo, .lista .titulo {
+        flex: 1;
+        min-width: 150px;
+        font-weight: bold;
+    }
+
+    .fav a, .lista a { color: #382110; text-decoration: none; }
+    .fav a:hover, .lista a:hover { text-decoration: underline; }
+
+    .sustituir-caja {
+        flex-basis: 100%;
+        display: flex;
+        gap: 8px;
+    }
+
+    .anadir-fila {
+        display: flex;
+        gap: 8px;
+        margin-top: 10px;
+    }
+
+    .etiqueta {
+        font-size: 12px;
+        padding: 2px 8px;
+        border-radius: 10px;
+        background: #e3ddd3;
+    }
+
+    .etiqueta.publica { background: #cfe9d9; }
+
+    .form-lista {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+
+    .form-lista input[type="text"] { flex: 1; min-width: 180px; width: auto; }
+
+    #mensaje { min-height: 22px; font-weight: bold; }
+    #mensaje.ok { color: green; }
+    #mensaje.error { color: red; }
+</style>
+</head>
+
+<body>
+<div class="pagina">
+
+    <div class="cabecera">
+        <a href="search.html">← Volver al buscador</a>
+        <button id="cerrarSesion" class="secundario">Cerrar sesión</button>
+    </div>
+
+    <p id="mensaje" role="status" aria-live="polite"></p>
+
+    <!-- PERFIL Y BIOGRAFÍA (H3.2) -->
+    <section class="tarjeta">
+        <h1 id="nombreUsuario">Mi perfil</h1>
+
+        <label for="biografia"><b>Biografía</b></label>
+        <textarea id="biografia" maxlength="500"
+                  placeholder="Preséntate ante otros usuarios..."></textarea>
+        <div id="contadorBio" class="contador">0 / 500</div>
+
+        <button id="guardarBio">Guardar biografía</button>
+    </section>
+
+    <!-- FAVORITOS (H4.1) -->
+    <section class="tarjeta">
+        <h2>Mis favoritos</h2>
+        <p>Puedes fijar hasta 5 obras por categoría.</p>
+        <div id="favoritos"></div>
+    </section>
+
+    <!-- LISTAS (H1.6 y H1.7) -->
+    <section class="tarjeta">
+        <h2>Mis listas</h2>
+
+        <form id="formLista" class="form-lista">
+            <input type="text" id="nombreLista" maxlength="100"
+                   placeholder="Nombre de la nueva lista" required>
+            <label>
+                <input type="checkbox" id="publicaLista"> Pública
+            </label>
+            <button type="submit">Crear lista</button>
+        </form>
+
+        <div id="listas"></div>
+    </section>
+
+</div>
+
+<script>
+    // ---------- Utilidades ----------
+
+    const TIPOS = [
+        { valor: "LIBRO",      nombre: "Libros" },
+        { valor: "PELICULA",   nombre: "Películas" },
+        { valor: "SERIE",      nombre: "Series" },
+        { valor: "VIDEOJUEGO", nombre: "Videojuegos" }
+    ];
+
+    const MAX_BIO = 500;
+
+    let favoritos = [];
+    let todasObras = [];
+
+    // Llama a la API. Si no hay sesión, redirige al login.
+    // Si el servidor devuelve un error, lanza una excepción con su mensaje.
+    async function api(url, opciones) {
+        const respuesta = await fetch(
+            url,
+            Object.assign({ credentials: "same-origin" }, opciones));
+
+        if (respuesta.status === 401 || respuesta.status === 403) {
+            window.location.href = "login.html";
+            throw new Error("Debes iniciar sesión.");
+        }
+
+        const texto = await respuesta.text();
+        let datos = null;
+
+        if (texto) {
+            try {
+                datos = JSON.parse(texto);
+            } catch (e) {
+                datos = texto;
+            }
+        }
+
+        if (!respuesta.ok) {
+            throw new Error(typeof datos === "string"
+                ? datos
+                : "Error " + respuesta.status);
+        }
+
+        return datos;
+    }
+
+    function jsonPost(cuerpo, metodo) {
+        return {
+            method: metodo,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(cuerpo)
+        };
+    }
+
+    // Muestra un mensaje de éxito o error arriba de la página.
+    function mostrar(texto, correcto) {
+        const mensaje = document.getElementById("mensaje");
+        mensaje.textContent = texto;
+        mensaje.className = correcto ? "ok" : "error";
+    }
+
+    // Ejecuta una acción y muestra el error si falla.
+    async function accion(funcion, textoOk) {
+        try {
+            await funcion();
+            if (textoOk) {
+                mostrar(textoOk, true);
+            }
+        } catch (error) {
+            mostrar(error.message, false);
+        }
+    }
+
+    // Crea un elemento HTML con texto seguro (sin interpretar HTML).
+    function crear(etiqueta, texto, clase) {
+        const el = document.createElement(etiqueta);
+        if (texto !== undefined) {
+            el.textContent = texto;
+        }
+        if (clase) {
+            el.className = clase;
+        }
+        return el;
+    }
+
+    function boton(texto, clase, alPulsar) {
+        const b = crear("button", texto, clase);
+        b.type = "button";
+        b.addEventListener("click", alPulsar);
+        return b;
+    }
+
+    // ---------- Perfil y biografía ----------
+
+    const biografia = document.getElementById("biografia");
+    const contadorBio = document.getElementById("contadorBio");
+
+    function actualizarContador() {
+        const n = biografia.value.length;
+        contadorBio.textContent = n + " / " + MAX_BIO;
+        contadorBio.className = n > MAX_BIO ? "contador excedido" : "contador";
+    }
+
+    biografia.addEventListener("input", actualizarContador);
+
+    async function cargarPerfil() {
+        const perfil = await api("/api/perfil");
+
+        document.getElementById("nombreUsuario").textContent = perfil.nombre;
+        biografia.value = perfil.biografia || "";
+        actualizarContador();
+    }
+
+    document.getElementById("guardarBio")
+        .addEventListener("click", function () {
+
+        if (biografia.value.length > MAX_BIO) {
+            mostrar("La biografía no puede superar los 500 caracteres.", false);
+            return;
+        }
+
+        accion(async function () {
+            const perfil = await api("/api/perfil/biografia",
+                jsonPost({ biografia: biografia.value }, "PUT"));
+
+            biografia.value = perfil.biografia || "";
+            actualizarContador();
+        }, "Biografía guardada correctamente.");
+    });
+
+    // ---------- Favoritos ----------
+
+    async function cargarFavoritos() {
+        favoritos = await api("/api/favoritos");
+        pintarFavoritos();
+    }
+
+    // Obras de un tipo que todavía no son favoritas.
+    function obrasDisponibles(tipo) {
+        const idsFavoritos = favoritos.map(f => f.obraId);
+
+        return todasObras.filter(o =>
+            o.tipo === tipo && !idsFavoritos.includes(o.id));
+    }
+
+    function crearSelector(tipo) {
+        const select = document.createElement("select");
+        const disponibles = obrasDisponibles(tipo);
+
+        if (disponibles.length === 0) {
+            const vacia = crear("option", "No hay más obras de este tipo");
+            vacia.value = "";
+            select.appendChild(vacia);
+            select.disabled = true;
+            return select;
+        }
+
+        disponibles.forEach(obra => {
+            const opcion = crear("option", obra.titulo);
+            opcion.value = obra.id;
+            select.appendChild(opcion);
+        });
+
+        return select;
+    }
+
+    function pintarFavoritos() {
+        const contenedor = document.getElementById("favoritos");
+        contenedor.innerHTML = "";
+
+        TIPOS.forEach(tipo => {
+            const items = favoritos
+                .filter(f => f.tipo === tipo.valor)
+                .sort((a, b) => a.posicion - b.posicion);
+
+            const bloque = crear("div", undefined, "bloque");
+            bloque.appendChild(
+                crear("h3", tipo.nombre + " (" + items.length + "/5)"));
+
+            if (items.length === 0) {
+                bloque.appendChild(crear("p",
+                    "Todavía no tienes favoritos en esta categoría.",
+                    "vacio"));
+            }
+
+            items.forEach((fav, indice) => {
+                bloque.appendChild(
+                    crearTarjetaFavorito(tipo.valor, items, fav, indice));
+            });
+
+            if (items.length < 5) {
+                bloque.appendChild(crearFilaAnadir(tipo.valor));
+            }
+
+            contenedor.appendChild(bloque);
+        });
+    }
+
+    function crearTarjetaFavorito(tipo, items, fav, indice) {
+        const tarjeta = crear("div", undefined, "fav");
+
+        tarjeta.appendChild(crear("span", fav.posicion, "posicion"));
+
+        const titulo = crear("span", undefined, "titulo");
+        const enlace = crear("a", fav.titulo);
+        enlace.href = "work.html?id=" + fav.obraId;
+        titulo.appendChild(enlace);
+        tarjeta.appendChild(titulo);
+
+        const subir = boton("↑", "secundario", () =>
+            mover(tipo, items, indice, -1));
+        subir.disabled = indice === 0;
+        subir.title = "Subir";
+
+        const bajar = boton("↓", "secundario", () =>
+            mover(tipo, items, indice, 1));
+        bajar.disabled = indice === items.length - 1;
+        bajar.title = "Bajar";
+
+        tarjeta.appendChild(subir);
+        tarjeta.appendChild(bajar);
+
+        // Caja de sustitución (oculta hasta pulsar "Sustituir").
+        const caja = crear("div", undefined, "sustituir-caja");
+        caja.style.display = "none";
+
+        const selector = crearSelector(tipo);
+        caja.appendChild(selector);
+        caja.appendChild(boton("Confirmar", "", () => {
+            if (!selector.value) {
+                return;
+            }
+            sustituir(fav.obraId, selector.value);
+        }));
+
+        tarjeta.appendChild(boton("Sustituir", "secundario", () => {
+            caja.style.display =
+                caja.style.display === "none" ? "flex" : "none";
+        }));
+
+        tarjeta.appendChild(boton("Quitar", "peligro", () =>
+            quitarFavorito(fav.obraId)));
+
+        tarjeta.appendChild(caja);
+
+        return tarjeta;
+    }
+
+    function crearFilaAnadir(tipo) {
+        const fila = crear("div", undefined, "anadir-fila");
+        const selector = crearSelector(tipo);
+
+        fila.appendChild(selector);
+        fila.appendChild(boton("Fijar como favorita", "", () => {
+            if (!selector.value) {
+                return;
+            }
+            anadirFavorito(selector.value);
+        }));
+
+        return fila;
+    }
+
+    function anadirFavorito(obraId) {
+        accion(async function () {
+            await api("/api/favoritos/" + obraId, { method: "POST" });
+            await cargarFavoritos();
+        }, "Favorito añadido.");
+    }
+
+    function quitarFavorito(obraId) {
+        if (!confirm("¿Quitar esta obra de tus favoritos?")) {
+            return;
+        }
+
+        accion(async function () {
+            await api("/api/favoritos/" + obraId, { method: "DELETE" });
+            await cargarFavoritos();
+        }, "Favorito eliminado.");
+    }
+
+    function sustituir(obraAntiguaId, obraNuevaId) {
+        accion(async function () {
+            await api("/api/favoritos/" + obraAntiguaId
+                + "/sustituir/" + obraNuevaId, { method: "PUT" });
+            await cargarFavoritos();
+        }, "Favorito sustituido.");
+    }
+
+    // Intercambia la posición de dos favoritos contiguos.
+    function mover(tipo, items, indice, desplazamiento) {
+        const destino = indice + desplazamiento;
+
+        if (destino < 0 || destino >= items.length) {
+            return;
+        }
+
+        const ids = items.map(f => f.obraId);
+        const temporal = ids[indice];
+        ids[indice] = ids[destino];
+        ids[destino] = temporal;
+
+        accion(async function () {
+            await api("/api/favoritos/orden?tipo=" + tipo,
+                jsonPost(ids, "PUT"));
+            await cargarFavoritos();
+        });
+    }
+
+    // ---------- Listas ----------
+
+    async function cargarListas() {
+        const listas = await api("/api/listas");
+        pintarListas(listas);
+    }
+
+    function pintarListas(listas) {
+        const contenedor = document.getElementById("listas");
+        contenedor.innerHTML = "";
+
+        if (listas.length === 0) {
+            contenedor.appendChild(crear("p",
+                "Todavía no has creado ninguna lista.", "vacio"));
+            return;
+        }
+
+        listas.forEach(lista => {
+            const fila = crear("div", undefined, "lista");
+
+            const titulo = crear("span", undefined, "titulo");
+            const enlace = crear("a",
+                lista.nombre + " (" + lista.numeroObras
+                + (lista.numeroObras === 1 ? " obra)" : " obras)"));
+            enlace.href = "lista.html?id=" + lista.id;
+            titulo.appendChild(enlace);
+            fila.appendChild(titulo);
+
+            fila.appendChild(crear("span",
+                lista.publica ? "Pública" : "Privada",
+                lista.publica ? "etiqueta publica" : "etiqueta"));
+
+            fila.appendChild(boton("Renombrar", "secundario", () =>
+                renombrarLista(lista)));
+
+            fila.appendChild(boton(
+                lista.publica ? "Hacer privada" : "Hacer pública",
+                "secundario",
+                () => cambiarVisibilidad(lista)));
+
+            fila.appendChild(boton("Borrar", "peligro", () =>
+                borrarLista(lista)));
+
+            contenedor.appendChild(fila);
+        });
+    }
+
+    document.getElementById("formLista")
+        .addEventListener("submit", function (evento) {
+
+        evento.preventDefault();
+
+        const nombre = document.getElementById("nombreLista");
+        const publica = document.getElementById("publicaLista");
+
+        accion(async function () {
+            await api("/api/listas", jsonPost({
+                nombre: nombre.value,
+                publica: publica.checked
+            }, "POST"));
+
+            nombre.value = "";
+            publica.checked = false;
+            await cargarListas();
+        }, "Lista creada.");
+    });
+
+    function renombrarLista(lista) {
+        const nuevo = prompt("Nuevo nombre de la lista:", lista.nombre);
+
+        if (nuevo === null) {
+            return;
+        }
+
+        accion(async function () {
+            await api("/api/listas/" + lista.id, jsonPost({
+                nombre: nuevo,
+                publica: lista.publica
+            }, "PUT"));
+            await cargarListas();
+        }, "Lista actualizada.");
+    }
+
+    function cambiarVisibilidad(lista) {
+        accion(async function () {
+            await api("/api/listas/" + lista.id, jsonPost({
+                nombre: lista.nombre,
+                publica: !lista.publica
+            }, "PUT"));
+            await cargarListas();
+        }, "Visibilidad actualizada.");
+    }
+
+    function borrarLista(lista) {
+        if (!confirm("¿Borrar la lista \"" + lista.nombre + "\"?")) {
+            return;
+        }
+
+        accion(async function () {
+            await api("/api/listas/" + lista.id, { method: "DELETE" });
+            await cargarListas();
+        }, "Lista eliminada.");
+    }
+
+    // ---------- Cerrar sesión ----------
+
+    document.getElementById("cerrarSesion")
+        .addEventListener("click", async function () {
+
+        try {
+            await fetch("/api/auth/logout", {
+                method: "POST",
+                credentials: "same-origin"
+            });
+        } finally {
+            window.location.href = "login.html";
+        }
+    });
+
+    // ---------- Inicio ----------
+
+    async function iniciar() {
+        try {
+            await cargarPerfil();
+            todasObras = await api("/search");
+            await cargarFavoritos();
+            await cargarListas();
+        } catch (error) {
+            mostrar(error.message, false);
+        }
+    }
+
+    iniciar();
+</script>
+
+</body>
+</html>

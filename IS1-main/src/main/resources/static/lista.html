@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lista - Shelfie</title>
+
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background-color: #f5f3ef;
+        color: #382110;
+        margin: 0;
+        padding: 20px;
+    }
+
+    .pagina { max-width: 900px; margin: auto; }
+
+    .tarjeta {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    h1 { margin-top: 0; }
+
+    button {
+        padding: 8px 12px;
+        border: none;
+        border-radius: 5px;
+        background-color: #c0392b;
+        color: white;
+        cursor: pointer;
+    }
+
+    button:hover { background-color: #962d22; }
+
+    .obra {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        padding: 10px;
+        margin-bottom: 8px;
+        border: 1px solid #e3ddd3;
+        border-left: 5px solid #409d69;
+        border-radius: 6px;
+        background: #fbfaf7;
+    }
+
+    .obra .titulo { flex: 1; min-width: 150px; font-weight: bold; }
+    .obra a { color: #382110; text-decoration: none; }
+    .obra a:hover { text-decoration: underline; }
+
+    .etiqueta {
+        font-size: 12px;
+        padding: 2px 8px;
+        border-radius: 10px;
+        background: #e3ddd3;
+    }
+
+    .etiqueta.publica { background: #cfe9d9; }
+    .vacio { color: #8a7a6b; font-style: italic; }
+
+    #mensaje { min-height: 22px; font-weight: bold; }
+    #mensaje.ok { color: green; }
+    #mensaje.error { color: red; }
+</style>
+</head>
+
+<body>
+<div class="pagina">
+
+    <p><a href="perfil.html">← Volver a mi perfil</a></p>
+
+    <p id="mensaje" role="status" aria-live="polite"></p>
+
+    <section class="tarjeta">
+        <h1 id="nombreLista">Lista</h1>
+        <p>
+            <span id="visibilidad" class="etiqueta"></span>
+            <span id="contador"></span>
+        </p>
+        <div id="obras"></div>
+    </section>
+
+</div>
+
+<script>
+    const listaId = new URLSearchParams(window.location.search).get("id");
+
+    let lista = null;
+
+    // Llama a la API. Sin sesión redirige al login;
+    // si el servidor devuelve un error, lanza su mensaje.
+    async function api(url, opciones) {
+        const respuesta = await fetch(
+            url,
+            Object.assign({ credentials: "same-origin" }, opciones));
+
+        if (respuesta.status === 401 || respuesta.status === 403) {
+            window.location.href = "login.html";
+            throw new Error("Debes iniciar sesión.");
+        }
+
+        const texto = await respuesta.text();
+        let datos = null;
+
+        if (texto) {
+            try {
+                datos = JSON.parse(texto);
+            } catch (e) {
+                datos = texto;
+            }
+        }
+
+        if (!respuesta.ok) {
+            throw new Error(typeof datos === "string"
+                ? datos
+                : "Error " + respuesta.status);
+        }
+
+        return datos;
+    }
+
+    function mostrar(texto, correcto) {
+        const mensaje = document.getElementById("mensaje");
+        mensaje.textContent = texto;
+        mensaje.className = correcto ? "ok" : "error";
+    }
+
+    function crear(etiqueta, texto, clase) {
+        const el = document.createElement(etiqueta);
+        if (texto !== undefined) {
+            el.textContent = texto;
+        }
+        if (clase) {
+            el.className = clase;
+        }
+        return el;
+    }
+
+    function pintar() {
+        document.getElementById("nombreLista").textContent = lista.nombre;
+        document.title = lista.nombre + " - Shelfie";
+
+        const visibilidad = document.getElementById("visibilidad");
+        visibilidad.textContent = lista.publica ? "Pública" : "Privada";
+        visibilidad.className =
+            lista.publica ? "etiqueta publica" : "etiqueta";
+
+        const n = lista.obras.length;
+        document.getElementById("contador").textContent =
+            " " + n + (n === 1 ? " obra" : " obras");
+
+        const contenedor = document.getElementById("obras");
+        contenedor.innerHTML = "";
+
+        if (n === 0) {
+            contenedor.appendChild(crear("p",
+                "Esta lista todavía no tiene obras.", "vacio"));
+            return;
+        }
+
+        lista.obras.forEach(obra => {
+            const fila = crear("div", undefined, "obra");
+
+            const titulo = crear("span", undefined, "titulo");
+            const enlace = crear("a", obra.titulo);
+            enlace.href = "work.html?id=" + obra.id;
+            titulo.appendChild(enlace);
+            fila.appendChild(titulo);
+
+            fila.appendChild(crear("span", obra.tipo, "etiqueta"));
+
+            // Solo el dueño puede quitar obras.
+            if (lista.mia) {
+                const quitar = crear("button", "Quitar");
+                quitar.type = "button";
+                quitar.addEventListener("click", () => quitarObra(obra));
+                fila.appendChild(quitar);
+            }
+
+            contenedor.appendChild(fila);
+        });
+    }
+
+    async function quitarObra(obra) {
+        if (!confirm("¿Quitar \"" + obra.titulo + "\" de la lista?")) {
+            return;
+        }
+
+        try {
+            await api("/api/listas/" + listaId + "/obras/" + obra.id,
+                { method: "DELETE" });
+            await cargar();
+            mostrar("Obra eliminada de la lista.", true);
+        } catch (error) {
+            mostrar(error.message, false);
+        }
+    }
+
+    async function cargar() {
+        lista = await api("/api/listas/" + listaId);
+        pintar();
+    }
+
+    async function iniciar() {
+        if (!listaId) {
+            mostrar("Falta el identificador de la lista.", false);
+            return;
+        }
+
+        try {
+            await cargar();
+        } catch (error) {
+            mostrar(error.message, false);
+        }
+    }
+
+    iniciar();
+</script>
+
+</body>
+</html>

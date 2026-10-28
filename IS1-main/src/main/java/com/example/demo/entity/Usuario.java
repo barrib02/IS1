@@ -9,98 +9,110 @@ import jakarta.persistence.*;
 @Table(name = "usuarios")
 public class Usuario {
 
-    // Identificador único del usuario.
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+	// Identificador único del usuario.
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-    // Nombre del usuario.
-    @Column(nullable = false)
-    private String nombre;
+	// Nombre del usuario.
+	@Column(nullable = false)
+	private String nombre;
 
-    // Correo electrónico único.
-    @Column(nullable = false, unique = true)
-    private String email;
+	// Correo electrónico único.
+	@Column(nullable = false, unique = true)
+	private String email;
 
-    // Contraseña cifrada con BCrypt.
-    @Column(nullable = false)
-    private String password;
+	// Contraseña cifrada con BCrypt.
+	@Column(nullable = false)
+	private String password;
 
-    // H6.1 - Indica si el correo está verificado.
-    @Column(nullable = false)
-    private boolean emailVerificado = false;
+	// H6.1 - Indica si el correo está verificado.
+	@Column(nullable = false)
+	private boolean emailVerificado = false;
 
-    // H6.1 - Token para verificar el correo.
-    @Column(unique = true)
-    private String tokenVerificacion;
+	// H6.1 - Token para verificar el correo.
+	@Column(unique = true)
+	private String tokenVerificacion;
 
-    // H6.1 - Fecha de caducidad del token.
-    @Column(name = "token_expiracion")
-    private LocalDateTime tokenExpiracion;
+	// H6.1 - Fecha de caducidad del token.
+	@Column(name = "token_expiracion")
+	private LocalDateTime tokenExpiracion;
 
-    // Constructor vacío necesario para JPA.
-    public Usuario() {
-    }
+	@Column(length = 500)
+	private String biografia;
 
-    // Constructor para registrar usuarios.
-    public Usuario(String nombre, String email, String password) {
-        this.nombre = nombre;
-        this.email = email;
-        this.password = password;
-        this.emailVerificado = false;
-    }
+	// Constructor vacío necesario para JPA.
+	public Usuario() {
+	}
 
-    // GETTERS Y SETTERS
+	// Constructor para registrar usuarios.
+	public Usuario(String nombre, String email, String password) {
+		this.nombre = nombre;
+		this.email = email;
+		this.password = password;
+		this.emailVerificado = false;
+	}
 
-    public Long getId() {
-        return id;
-    }
+	// GETTERS Y SETTERS
 
-    public String getNombre() {
-        return nombre;
-    }
+	public Long getId() {
+		return id;
+	}
 
-    public void setNombre(String nombre) {
-        this.nombre = nombre;
-    }
+	public String getNombre() {
+		return nombre;
+	}
 
-    public String getEmail() {
-        return email;
-    }
+	public void setNombre(String nombre) {
+		this.nombre = nombre;
+	}
 
-    public void setEmail(String email) {
-        this.email = email;
-    }
+	public String getEmail() {
+		return email;
+	}
 
-    public String getPassword() {
-        return password;
-    }
+	public void setEmail(String email) {
+		this.email = email;
+	}
 
-    public void setPassword(String password) {
-        this.password = password;
-    }
+	public String getPassword() {
+		return password;
+	}
 
-    public boolean isEmailVerificado() {
-        return emailVerificado;
-    }
+	public void setPassword(String password) {
+		this.password = password;
+	}
 
-    public void setEmailVerificado(boolean emailVerificado) {
-        this.emailVerificado = emailVerificado;
-    }
+	public boolean isEmailVerificado() {
+		return emailVerificado;
+	}
 
-    public String getTokenVerificacion() {
-        return tokenVerificacion;
-    }
+	public void setEmailVerificado(boolean emailVerificado) {
+		this.emailVerificado = emailVerificado;
+	}
 
-    public void setTokenVerificacion(String tokenVerificacion) {
-        this.tokenVerificacion = tokenVerificacion;
-    }
+	public String getTokenVerificacion() {
+		return tokenVerificacion;
+	}
 
-    public LocalDateTime getTokenExpiracion() {
-        return tokenExpiracion;
-    }
+	public void setTokenVerificacion(String tokenVerificacion) {
+		this.tokenVerificacion = tokenVerificacion;
+	}
 
-    public void setTokenExpiracion(LocalDateTime tokenExpiracion) {
-        this.tokenExpiracion = tokenExpiracion;
-    }
+	public LocalDateTime getTokenExpiracion() {
+		return tokenExpiracion;
+	}
+
+	public void setTokenExpiracion(LocalDateTime tokenExpiracion) {
+		this.tokenExpiracion = tokenExpiracion;
+	}
+
+	public String getBiografia() {
+		return this.biografia;
+	}
+
+	public void setBiografia(String bio) {
+		this.biografia = bio;
+	}
+
 }

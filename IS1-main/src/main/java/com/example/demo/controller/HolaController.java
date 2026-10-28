@@ -5,6 +5,6 @@ import org.springframework.web.bind.annotation.RestController;
 public class HolaController {
 @GetMapping("/")
 public String inicio() {
-return "Bienvenido a Goodreads Plus";
+return "Bienvenido a Shelfie";
 }
 }
