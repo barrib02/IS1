@@ -43,6 +43,14 @@ public class ObraController {
         return ResponseEntity.ok(obra); // Devuelve 200 OK con el JSON de la obra
 	}
 
+	@GetMapping("/sugerencias")
+	public List<Obra> obtenerSugerencias(
+
+	        @RequestParam String texto){
+
+	    return obraService.obtenerSugerencias(texto);
+	}
+	
 	@PutMapping("/work/{id}/estado")
 	public ResponseEntity<Obra> cambiarEstado(
 	        @PathVariable Long id,

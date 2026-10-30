@@ -16,4 +16,5 @@ public interface ObraRepository extends JpaRepository<Obra, Long> {
 
 	List<Obra> findByTituloContainingIgnoreCaseAndTipo(String titulo, TipoObra tipo);
 
+	List<Obra> findTop5ByTituloStartingWithIgnoreCase(String titulo);
 }

@@ -48,6 +48,12 @@ public class ObraService {
 		return obraRepository.findAll();
 	}
 	
+	public List<Obra> obtenerSugerencias(String texto){
+
+	    return obraRepository
+	            .findTop5ByTituloStartingWithIgnoreCase(texto);
+	}
+	
 	public Obra obtenerPorId(Long id) {
 	    return obraRepository.findById(id).orElse(null);
 	}

@@ -10,6 +10,8 @@
 
 	<input type="text" id="titulo" placeholder="Buscar obra">
 
+	<div id="sugerencias"></div>
+
 	<button id="buscar">Buscar</button>
 
 	<br>
@@ -38,6 +40,10 @@
 document.getElementById("buscar")
 .addEventListener("click", buscar);
 
+document
+.getElementById("titulo")
+.addEventListener("input", sugerir);
+
 async function buscar() {
 
     const titulo =
@@ -58,6 +64,66 @@ async function buscar() {
         await respuesta.json();
 
     mostrarResultados(obras);
+}
+
+async function sugerir(){
+
+    const texto =
+        document.getElementById("titulo").value;
+
+    if(texto.length < 2){
+
+        document.getElementById(
+            "sugerencias"
+        ).innerHTML = "";
+
+        return;
+    }
+
+    const respuesta =
+        await fetch(
+            "/sugerencias?texto="
+            + encodeURIComponent(texto)
+        );
+
+    const obras =
+        await respuesta.json();
+
+    mostrarSugerencias(obras);
+}
+
+function mostrarSugerencias(obras){
+
+    const div =
+        document.getElementById(
+            "sugerencias"
+        );
+
+    div.innerHTML = "";
+
+    obras.forEach(obra => {
+
+        div.innerHTML +=
+        `
+        <div
+            onclick="abrirObra(${obra.id})"
+            style="
+                cursor:pointer;
+                padding:5px;
+                border-bottom:1px solid lightgray;
+            ">
+
+            ${obra.titulo}
+
+        </div>
+        `;
+    });
+}
+
+function abrirObra(id){
+
+    window.location.href =
+        "/work.html?id=" + id;
 }
 
 function mostrarResultados(obras) {
