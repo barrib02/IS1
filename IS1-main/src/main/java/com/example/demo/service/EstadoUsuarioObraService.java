@@ -13,7 +13,11 @@ import com.example.demo.repository.EstadoUsuarioObraRepository;
 public class EstadoUsuarioObraService {
 
 	@Autowired
-	private EstadoUsuarioObraRepository repository;
+	private final EstadoUsuarioObraRepository repository;
+
+	public EstadoUsuarioObraService(EstadoUsuarioObraRepository repository) {
+		this.repository = repository;
+	}
 
 	public boolean cambiarEstado(Long usuarioId, Long obraId, EstadoObra nuevoEstado) {
 

@@ -4,6 +4,8 @@ import java.util.HashSet;
 import java.util.Set;
 import jakarta.persistence.*;
 import jakarta.persistence.Column;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.JoinColumn;
 
 @Entity
 @Table(name = "obras")
@@ -20,7 +22,10 @@ public class Obra {
 
 	@Enumerated(EnumType.STRING)
 	private TipoObra tipo;
-	
+
+	@ManyToOne
+	@JoinColumn(name = "creador_id")
+	private Creador creador;
 
 	@ElementCollection(targetClass = GeneroObra.class)
 	@Enumerated(EnumType.STRING)
@@ -80,12 +85,19 @@ public class Obra {
 		this.tipo = tipo;
 	}
 
-
 	public Set<GeneroObra> getGeneros() {
-	    return generos;
+		return generos;
 	}
 
 	public void setGeneros(Set<GeneroObra> generos) {
-	    this.generos = generos;
+		this.generos = generos;
+	}
+
+	public Creador getCreador() { // Para asociar una obra a un creador
+		return creador;
+	}
+
+	public void setCreador(Creador creador) { // Para asociar una obra a un creador
+		this.creador = creador;
 	}
 }

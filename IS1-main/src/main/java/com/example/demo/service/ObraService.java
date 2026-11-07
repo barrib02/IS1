@@ -14,8 +14,11 @@ import com.example.demo.repository.ObraRepository;
 @Service
 public class ObraService {
 
-	@Autowired
-	private ObraRepository obraRepository;
+	private final ObraRepository obraRepository;
+	
+	public ObraService(ObraRepository obraRepository) {
+        this.obraRepository = obraRepository;
+    }
 
 	public List<Obra> getObras() {
 		return obraRepository.findAll();
