@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+
+<meta charset="UTF-8">
+
+<title>Ficha de creador</title>
+
+<style>
+body {
+	font-family: Arial, sans-serif;
+	max-width: 1000px;
+	margin: auto;
+	padding: 30px;
+	background-color: #f5f5f5;
+}
+
+.tarjeta {
+	background: white;
+	padding: 20px;
+	border-radius: 10px;
+	box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.foto {
+	width: 200px;
+	border-radius: 10px;
+	margin-bottom: 20px;
+}
+
+.obra {
+	padding: 10px;
+	margin: 8px 0;
+	background: #fafafa;
+	border-left: 5px solid #409d69;
+	border-radius: 5px;
+}
+
+.destacada {
+	background: #fff6d8;
+	border-left: 5px solid gold;
+}
+
+a {
+	color: #382110;
+	text-decoration: none;
+	font-weight: bold;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+h2 {
+	margin-top: 30px;
+}
+</style>
+
+</head>
+
+<body>
+
+	<div id="contenido"></div>
+
+	<script>
+
+// Recuperamos el id recibido en la URL
+const params =
+        new URLSearchParams(window.location.search);
+
+const creadorId =
+        params.get("id");
+
+async function cargarCreador() {
+
+    try {
+
+        const respuesta =
+                await fetch(
+                    "/creador/" + creadorId);
+
+        if(!respuesta.ok){
+
+            document.getElementById("contenido")
+                .innerHTML =
+                "<h2>Creador no encontrado</h2>";
+
+            return;
+        }
+
+        const creador =
+                await respuesta.json();
+
+        let html = `
+
+        <div class="tarjeta">
+
+            <h1>${creador.nombre}</h1>
+
+            <img
+                class="foto"
+                src="${creador.foto}"
+                alt="${creador.nombre}">
+
+            <h2>Biografía</h2>
+
+            <p>
+                ${creador.biografia}
+            </p>
+
+            <h2>Obras destacadas</h2>
+
+        `;
+
+        // =====================
+        // OBRAS DESTACADAS
+        // =====================
+
+        creador.destacadas.forEach(obra => {
+
+            html += `
+
+                <div class="obra destacada">
+
+                    <a href="work.html?id=${obra.id}">
+                        ${obra.titulo}
+                    </a>
+
+                    (${obra.tipo})
+
+                </div>
+
+            `;
+        });
+
+        // =====================
+        // LIBROS
+        // =====================
+
+        html += `
+            <h2>Libros</h2>
+        `;
+
+        creador.obras
+            .filter(o => o.tipo === "LIBRO")
+            .forEach(obra => {
+
+                html += `
+                    <div class="obra">
+
+                        <a href="work.html?id=${obra.id}">
+                            ${obra.titulo}
+                        </a>
+
+                    </div>
+                `;
+            });
+
+        // =====================
+        // PELÍCULAS
+        // =====================
+
+        html += `
+            <h2>Películas</h2>
+        `;
+
+        creador.obras
+            .filter(o => o.tipo === "PELICULA")
+            .forEach(obra => {
+
+                html += `
+                    <div class="obra">
+
+                        <a href="work.html?id=${obra.id}">
+                            ${obra.titulo}
+                        </a>
+
+                    </div>
+                `;
+            });
+
+        // =====================
+        // SERIES
+        // =====================
+
+        html += `
+            <h2>Series</h2>
+        `;
+
+        creador.obras
+            .filter(o => o.tipo === "SERIE")
+            .forEach(obra => {
+
+                html += `
+                    <div class="obra">
+
+                        <a href="work.html?id=${obra.id}">
+                            ${obra.titulo}
+                        </a>
+
+                    </div>
+                `;
+            });
+
+        // =====================
+        // VIDEOJUEGOS
+        // =====================
+
+        html += `
+            <h2>Videojuegos</h2>
+        `;
+
+        creador.obras
+            .filter(o => o.tipo === "VIDEOJUEGO")
+            .forEach(obra => {
+
+                html += `
+                    <div class="obra">
+
+                        <a href="work.html?id=${obra.id}">
+                            ${obra.titulo}
+                        </a>
+
+                    </div>
+                `;
+            });
+
+        html += `
+            </div>
+        `;
+
+        document.getElementById("contenido")
+                .innerHTML = html;
+
+    }
+    catch(error){
+
+        document.getElementById("contenido")
+            .innerHTML =
+            "<h2>Error al cargar el creador</h2>";
+    }
+}
+
+cargarCreador();
+
+</script>
+
+</body>
+</html>

@@ -23,6 +23,9 @@ public class Obra {
 	@Enumerated(EnumType.STRING)
 	private TipoObra tipo;
 
+	// Año de publicación o estreno
+	private Integer anio;
+
 	@ManyToOne
 	@JoinColumn(name = "creador_id")
 	private Creador creador;
@@ -36,13 +39,15 @@ public class Obra {
 	public Obra() {
 	}
 
-	public Obra(Long id, String titulo, String autor, String descripcion, TipoObra tipo, Set<GeneroObra> generos) {
+	public Obra(Long id, String titulo, String autor, String descripcion, TipoObra tipo, Integer anio,
+			Set<GeneroObra> generos) {
 		this.id = id;
 		this.titulo = titulo;
 		this.autor = autor;
 		this.descripcion = descripcion;
 		this.tipo = tipo;
 		this.generos = generos;
+		this.anio = anio;
 	}
 
 	public Long getId() {
@@ -99,5 +104,13 @@ public class Obra {
 
 	public void setCreador(Creador creador) { // Para asociar una obra a un creador
 		this.creador = creador;
+	}
+
+	public Integer getAnio() {
+		return anio;
+	}
+
+	public void setAnio(Integer anio) {
+		this.anio = anio;
 	}
 }

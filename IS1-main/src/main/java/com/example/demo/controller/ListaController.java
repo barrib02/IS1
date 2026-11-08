@@ -105,3 +105,4 @@ public class ListaController {
 		return error.getBindingResult().getFieldErrors().get(0).getDefaultMessage();
 	}
 }
+

@@ -42,3 +42,4 @@ public class EstadoUsuarioObraController {
         return service.obtenerEstado(usuarioId, obraId);
     }
 }
+
