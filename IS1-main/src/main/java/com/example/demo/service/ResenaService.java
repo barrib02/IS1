@@ -4,66 +4,74 @@ package com.example.demo.service;
 import com.example.demo.entity.Resena;
 import com.example.demo.repository.ResenaRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ResenaService {
 
-    private final ResenaRepository resenaRepository;
+	private final ResenaRepository resenaRepository;
+	private final ActividadService actividadService;
 
-    public ResenaService(ResenaRepository resenaRepository) {
-        this.resenaRepository = resenaRepository;
-    }
+	public ResenaService(ResenaRepository resenaRepository, ActividadService actividadService) {
 
-    // Crear una reseña
-    public Resena crearResena(Resena resena) {
-        validarTexto(resena.getTexto());
-        resena.setId(null);
-        return resenaRepository.save(resena);
-    }
+		this.resenaRepository = resenaRepository;
+		this.actividadService = actividadService;
+	}
 
-    // Editar una reseña
-    public Resena editarResena(Long id, String texto) {
-        validarTexto(texto);
+	// Crear una reseña
+	// Crear una reseña y registrar la actividad
+	@Transactional
+	public Resena crearResena(Resena resena) {
+		validarTexto(resena.getTexto());
+		resena.setId(null);
 
-        Resena resena = resenaRepository.findById(id)
-                .orElseThrow(() ->
-                    new IllegalArgumentException("Reseña no encontrada"));
+		Resena resenaGuardada = resenaRepository.save(resena);
 
-        resena.setTexto(texto);
-        return resenaRepository.save(resena);
-    }
+		actividadService.registrarActividad(resenaGuardada.getUsuarioId(), resenaGuardada.getObraId(), "RESENA",
+				"Ha publicado una reseña");
 
-    // Eliminar una reseña
-    public void eliminarResena(Long id) {
-        if (!resenaRepository.existsById(id)) {
-            throw new IllegalArgumentException("Reseña no encontrada");
-        }
+		return resenaGuardada;
+	}
 
-        resenaRepository.deleteById(id);
-    }
+	// Editar una reseña
+	public Resena editarResena(Long id, String texto) {
+		validarTexto(texto);
 
-    // Validar el límite de 200 palabras
-    private void validarTexto(String texto) {
-        if (texto == null || texto.trim().isEmpty()) {
-            throw new IllegalArgumentException(
-                "La reseña no puede estar vacía");
-        }
+		Resena resena = resenaRepository.findById(id)
+				.orElseThrow(() -> new IllegalArgumentException("Reseña no encontrada"));
 
-        String[] palabras = texto.trim().split("\\s+");
+		resena.setTexto(texto);
+		return resenaRepository.save(resena);
+	}
 
-        if (palabras.length > 200) {
-            throw new IllegalArgumentException(
-                "La reseña no puede superar las 200 palabras");
-        }
-    }
-    
- // Buscar la reseña asociada a una valoración
-    public Resena obtenerResenaPorValoracion(Long valoracionId) {
-        return resenaRepository.findByValoracionId(valoracionId)
-                .orElse(null);
-    }
-    
-    public Resena obtenerResenaPorUsuarioYObra(Long usuarioId, Long obraId) {
-        return resenaRepository.findByUsuarioIdAndObraId(usuarioId, obraId).orElse(null);
-    }
+	// Eliminar una reseña
+	public void eliminarResena(Long id) {
+		if (!resenaRepository.existsById(id)) {
+			throw new IllegalArgumentException("Reseña no encontrada");
+		}
+
+		resenaRepository.deleteById(id);
+	}
+
+	// Validar el límite de 200 palabras
+	private void validarTexto(String texto) {
+		if (texto == null || texto.trim().isEmpty()) {
+			throw new IllegalArgumentException("La reseña no puede estar vacía");
+		}
+
+		String[] palabras = texto.trim().split("\\s+");
+
+		if (palabras.length > 200) {
+			throw new IllegalArgumentException("La reseña no puede superar las 200 palabras");
+		}
+	}
+
+	// Buscar la reseña asociada a una valoración
+	public Resena obtenerResenaPorValoracion(Long valoracionId) {
+		return resenaRepository.findByValoracionId(valoracionId).orElse(null);
+	}
+
+	public Resena obtenerResenaPorUsuarioYObra(Long usuarioId, Long obraId) {
+		return resenaRepository.findByUsuarioIdAndObraId(usuarioId, obraId).orElse(null);
+	}
 }

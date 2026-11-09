@@ -11,6 +11,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import java.io.IOException;
+import java.util.Map;
+
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.example.demo.dto.BiografiaRequest;
 import com.example.demo.dto.PerfilResponse;
@@ -61,4 +67,30 @@ public class PerfilController {
 	public String manejarValidacion(MethodArgumentNotValidException error) {
 		return error.getBindingResult().getFieldErrors().get(0).getDefaultMessage();
 	}
+	
+
+    // H4.2 - Subir o cambiar la foto de perfil
+    @PostMapping("/foto")
+    public Map<String, String> subirFoto(
+            @RequestParam("archivo") MultipartFile archivo,
+            Authentication auth) throws IOException {
+
+        String url = perfilService.actualizarFotoPerfil(
+                auth.getName(), archivo);
+
+        return Map.of("url", url);
+    }
+
+    // H4.4 - Subir o cambiar el banner
+    @PostMapping("/banner")
+    public Map<String, String> subirBanner(
+            @RequestParam("archivo") MultipartFile archivo,
+            Authentication auth) throws IOException {
+
+        String url = perfilService.actualizarBanner(
+                auth.getName(), archivo);
+
+        return Map.of("url", url);
+    }
+
 }

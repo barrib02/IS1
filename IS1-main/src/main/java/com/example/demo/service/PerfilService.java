@@ -2,10 +2,14 @@ package com.example.demo.service;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.example.demo.dto.PerfilResponse;
 import com.example.demo.entity.Usuario;
 import com.example.demo.repository.UsuarioRepository;
+
+import java.io.IOException;
+
 
 @Service
 public class PerfilService {
@@ -13,9 +17,11 @@ public class PerfilService {
 	private static final int MAX_BIOGRAFIA = 500;
 
 	private final UsuarioRepository usuarioRepository;
+	private final CloudinaryService cloudinaryService;
 
-	public PerfilService(UsuarioRepository usuarioRepository) {
+	public PerfilService(UsuarioRepository usuarioRepository, CloudinaryService cloudinaryService) {
 		this.usuarioRepository = usuarioRepository;
+		this.cloudinaryService = cloudinaryService;
 	}
 
 	// Devuelve la entidad Usuario a partir del email de la sesión.
@@ -58,6 +64,43 @@ public class PerfilService {
 
 	// Convierte la entidad en el DTO que se envía al navegador.
 	private PerfilResponse convertir(Usuario usuario) {
-		return new PerfilResponse(usuario.getId(), usuario.getNombre(), usuario.getBiografia());
+	    return new PerfilResponse(
+	        usuario.getId(),
+	        usuario.getNombre(),
+	        usuario.getBiografia(),
+	        usuario.getFotoPerfilUrl(),
+	        usuario.getBannerUrl()
+	    );
 	}
+
+	// H4.2 - Subir o cambiar la foto de perfil
+	@Transactional
+	public String actualizarFotoPerfil(String email, MultipartFile archivo) throws IOException {
+
+		Usuario usuario = obtenerUsuarioPorEmail(email);
+
+		String url = cloudinaryService.subirImagen(archivo, "goodreads-plus/perfiles");
+
+		usuario.setFotoPerfilUrl(url);
+		usuarioRepository.save(usuario);
+
+		return url;
+	}
+
+	// H4.4 - Subir o cambiar el banner
+	@Transactional
+	public String actualizarBanner(String email, MultipartFile archivo) throws IOException {
+
+		Usuario usuario = obtenerUsuarioPorEmail(email);
+
+		String url = cloudinaryService.subirImagen(archivo, "goodreads-plus/banners");
+
+		usuario.setBannerUrl(url);
+		usuarioRepository.save(usuario);
+
+		return url;
+	}
+	
+	
+
 }

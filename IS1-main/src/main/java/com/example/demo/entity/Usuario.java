@@ -40,6 +40,13 @@ public class Usuario {
 
 	@Column(length = 500)
 	private String biografia;
+	// H4.2 - URL de la foto de perfil
+	@Column(name = "foto_perfil_url")
+	private String fotoPerfilUrl;
+
+	// H4.4 - URL del banner
+	@Column(name = "banner_url")
+	private String bannerUrl;
 
 	// Constructor vacío necesario para JPA.
 	public Usuario() {
@@ -115,4 +122,19 @@ public class Usuario {
 		this.biografia = bio;
 	}
 
+	public String getFotoPerfilUrl() {
+		return fotoPerfilUrl;
+	}
+
+	public void setFotoPerfilUrl(String fotoPerfilUrl) {
+		this.fotoPerfilUrl = fotoPerfilUrl;
+	}
+
+	public String getBannerUrl() {
+		return bannerUrl;
+	}
+
+	public void setBannerUrl(String bannerUrl) {
+		this.bannerUrl = bannerUrl;
+	}
 }
