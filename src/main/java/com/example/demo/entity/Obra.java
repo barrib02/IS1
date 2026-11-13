@@ -17,6 +17,9 @@ public class Obra {
 
 	private String titulo;
 	private String autor;
+
+	private Long autorId;
+
 	@Column(columnDefinition = "TEXT")
 	private String descripcion;
 
@@ -36,6 +39,12 @@ public class Obra {
 	@Column(name = "genero")
 	private Set<GeneroObra> generos = new HashSet<>();
 
+	@Column(nullable = false)
+	private boolean validada = false;
+
+	@Enumerated(EnumType.STRING)
+	private EstadoValidacion estadoValidacion = EstadoValidacion.PENDIENTE;
+
 	public Obra() {
 	}
 
@@ -48,6 +57,15 @@ public class Obra {
 		this.tipo = tipo;
 		this.generos = generos;
 		this.anio = anio;
+	}
+
+	public EstadoValidacion getEstadoValidacion() {
+		return estadoValidacion;
+	}
+
+	public void setEstadoValidacion(EstadoValidacion estadoValidacion) {
+
+		this.estadoValidacion = estadoValidacion;
 	}
 
 	public Long getId() {
@@ -113,4 +131,21 @@ public class Obra {
 	public void setAnio(Integer anio) {
 		this.anio = anio;
 	}
+
+	public boolean isValidada() {
+		return validada;
+	}
+
+	public void setValidada(boolean validada) {
+		this.validada = validada;
+	}
+
+	public Long getAutorId() {
+		return autorId;
+	}
+
+	public void setAutorId(Long autorId) {
+		this.autorId = autorId;
+	}
+
 }

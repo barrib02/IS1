@@ -4,39 +4,51 @@ import java.util.List;
 
 public class ListaDetalleResponse {
 
-    private Long id;
-    private String nombre;
-    private boolean publica;
-    private boolean mia;
-    private List<SearchResultDTO> obras;
+	private Long id;
+	private String nombre;
+	private boolean publica;
+	private boolean mia;
+	private String descripcion;
+	private String creador;
+	private List<SearchResultDTO> obras;
 
-    public ListaDetalleResponse(Long id, String nombre, boolean publica,
-                                boolean mia, List<SearchResultDTO> obras) {
-        this.id = id;
-        this.nombre = nombre;
-        this.publica = publica;
-        this.mia = mia;
-        this.obras = obras;
-    }
+	public ListaDetalleResponse(Long id, String nombre, boolean publica, boolean mia, String descripcion,
+			String creador, List<SearchResultDTO> obras) {
+		this.id = id;
+		this.nombre = nombre;
+		this.publica = publica;
+		this.mia = mia;
+		this.obras = obras;
+		this.descripcion = descripcion;
+		this.creador = creador;
+	}
 
-    public Long getId() {
-        return id;
-    }
+	public Long getId() {
+		return id;
+	}
 
-    public String getNombre() {
-        return nombre;
-    }
+	public String getNombre() {
+		return nombre;
+	}
 
-    public boolean isPublica() {
-        return publica;
-    }
+	public boolean isPublica() {
+		return publica;
+	}
 
-    // true si la lista pertenece al usuario que la consulta.
-    public boolean isMia() {
-        return mia;
-    }
+	// true si la lista pertenece al usuario que la consulta.
+	public boolean isMia() {
+		return mia;
+	}
+	
+	public String getDescripcion() {
+	    return descripcion;
+	}
 
-    public List<SearchResultDTO> getObras() {
-        return obras;
-    }
+	public String getCreador() {
+	    return creador;
+	}
+
+	public List<SearchResultDTO> getObras() {
+		return obras;
+	}
 }

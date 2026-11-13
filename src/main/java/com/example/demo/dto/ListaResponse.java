@@ -2,32 +2,45 @@ package com.example.demo.dto;
 
 public class ListaResponse {
 
-    private Long id;
-    private String nombre;
-    private boolean publica;
-    private long numeroObras;
+	private Long id;
+	private String nombre;
+	private boolean publica;
+	private long numeroObras;
+	private String descripcion;
+	private String creador;
 
-    public ListaResponse(Long id, String nombre,
-                         boolean publica, long numeroObras) {
-        this.id = id;
-        this.nombre = nombre;
-        this.publica = publica;
-        this.numeroObras = numeroObras;
-    }
+	public ListaResponse(Long id, String nombre, boolean publica, long numeroObras, String descripcion,
+			String creador) {
+		this.id = id;
+		this.nombre = nombre;
+		this.publica = publica;
+		this.numeroObras = numeroObras;
+		this.descripcion = descripcion;
+		this.creador = creador;
+	}
 
-    public Long getId() {
-        return id;
-    }
+	public String getCreador() {
+		return creador;
+	}
 
-    public String getNombre() {
-        return nombre;
-    }
+	public Long getId() {
+		return id;
+	}
 
-    public boolean isPublica() {
-        return publica;
-    }
+	public String getNombre() {
+		return nombre;
+	}
 
-    public long getNumeroObras() {
-        return numeroObras;
-    }
+	public boolean isPublica() {
+		return publica;
+	}
+
+	public long getNumeroObras() {
+		return numeroObras;
+	}
+
+	public String getDescripcion() {
+		return descripcion;
+	}
+
 }

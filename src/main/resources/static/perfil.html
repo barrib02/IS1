@@ -256,8 +256,31 @@ button:disabled {
 	<div class="pagina">
 
 		<div class="cabecera">
-			<a href="search.html">← Volver al buscador</a>
-			<button id="cerrarSesion" class="secundario">Cerrar sesión</button>
+
+		    <a href="search.html">
+		        ← Volver al buscador
+		    </a>
+
+		    <div>
+
+		        <button
+		            type="button"
+		            onclick="window.location.href='subir-obra.html'">
+
+		            Subir obra
+
+		        </button>
+
+		        <button
+		            id="cerrarSesion"
+		            class="secundario">
+
+		            Cerrar sesión
+
+		        </button>
+
+		    </div>
+
 		</div>
 
 		<p id="mensaje" role="status" aria-live="polite"></p>
@@ -334,7 +357,14 @@ button:disabled {
 
 			<form id="formLista" class="form-lista">
 				<input type="text" id="nombreLista" maxlength="100"
-					placeholder="Nombre de la nueva lista" required> <label>
+					placeholder="Nombre de la nueva lista" required> 
+					<input
+					type="text"
+					id="descripcionLista"
+					maxlength="500"
+					placeholder="Descripción de la lista (opcional)">
+					
+					<label>
 					<input type="checkbox" id="publicaLista"> Pública
 				</label>
 				<button type="submit">Crear lista</button>
@@ -805,7 +835,7 @@ button:disabled {
                 lista.publica ? "Pública" : "Privada",
                 lista.publica ? "etiqueta publica" : "etiqueta"));
 
-            fila.appendChild(boton("Renombrar", "secundario", () =>
+            fila.appendChild(boton("Editar", "secundario", () =>
                 renombrarLista(lista)));
 
             fila.appendChild(boton(
@@ -816,6 +846,18 @@ button:disabled {
             fila.appendChild(boton("Borrar", "peligro", () =>
                 borrarLista(lista)));
 
+				if(lista.descripcion){
+
+				    fila.appendChild(
+				        crear(
+				            "span",
+				            lista.descripcion
+				        )
+				    );
+
+				}
+			
+			
             contenedor.appendChild(fila);
         });
     }
@@ -827,41 +869,97 @@ button:disabled {
 
         const nombre = document.getElementById("nombreLista");
         const publica = document.getElementById("publicaLista");
+		const descripcion =
+		document.getElementById(
+		    "descripcionLista"
+		);
 
         accion(async function () {
-            await api("/api/listas", jsonPost({
-                nombre: nombre.value,
-                publica: publica.checked
-            }, "POST"));
+			const descripcion =
+			    document.getElementById(
+			        "descripcionLista"
+			    );
 
-            nombre.value = "";
-            publica.checked = false;
+				await api("/api/listas", jsonPost({
+
+				    nombre:
+				        nombre.value,
+
+				    descripcion:
+				        descripcion.value,
+
+				    publica:
+				        publica.checked
+
+				}, "POST"));
+
+				nombre.value = "";
+				descripcion.value = "";
+				publica.checked = false;
             await cargarListas();
         }, "Lista creada.");
     });
 
-    function renombrarLista(lista) {
-        const nuevo = prompt("Nuevo nombre de la lista:", lista.nombre);
+	function renombrarLista(lista) {
 
-        if (nuevo === null) {
-            return;
-        }
+	    const nuevoNombre =
+	        prompt(
+	            "Nuevo nombre:",
+	            lista.nombre
+	        );
 
-        accion(async function () {
-            await api("/api/listas/" + lista.id, jsonPost({
-                nombre: nuevo,
-                publica: lista.publica
-            }, "PUT"));
-            await cargarListas();
-        }, "Lista actualizada.");
-    }
+	    if(nuevoNombre === null){
+	        return;
+	    }
+
+	    const nuevaDescripcion =
+	        prompt(
+	            "Nueva descripción:",
+	            lista.descripcion || ""
+	        );
+
+	    if(nuevaDescripcion === null){
+	        return;
+	    }
+
+	    accion(async function () {
+
+	        await api(
+	            "/api/listas/" + lista.id,
+	            jsonPost({
+
+	                nombre:
+	                    nuevoNombre,
+
+	                descripcion:
+	                    nuevaDescripcion,
+
+	                publica:
+	                    lista.publica
+
+	            }, "PUT")
+	        );
+
+	        await cargarListas();
+
+	    }, "Lista actualizada.");
+
+	}
 
     function cambiarVisibilidad(lista) {
         accion(async function () {
-            await api("/api/listas/" + lista.id, jsonPost({
-                nombre: lista.nombre,
-                publica: !lista.publica
-            }, "PUT"));
+			await api("/api/listas/" + lista.id,
+			jsonPost({
+
+			    nombre: lista.nombre,
+
+			    descripcion:
+			        lista.descripcion,
+
+			    publica:
+			        !lista.publica
+
+			}, "PUT"));
             await cargarListas();
         }, "Visibilidad actualizada.");
     }

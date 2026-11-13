@@ -10,7 +10,6 @@ import com.example.demo.repository.UsuarioRepository;
 
 import java.io.IOException;
 
-
 @Service
 public class PerfilService {
 
@@ -64,13 +63,8 @@ public class PerfilService {
 
 	// Convierte la entidad en el DTO que se envía al navegador.
 	private PerfilResponse convertir(Usuario usuario) {
-	    return new PerfilResponse(
-	        usuario.getId(),
-	        usuario.getNombre(),
-	        usuario.getBiografia(),
-	        usuario.getFotoPerfilUrl(),
-	        usuario.getBannerUrl()
-	    );
+		return new PerfilResponse(usuario.getId(), usuario.getNombre(), usuario.getBiografia(),
+				usuario.getFotoPerfilUrl(), usuario.getBannerUrl());
 	}
 
 	// H4.2 - Subir o cambiar la foto de perfil
@@ -100,7 +94,12 @@ public class PerfilService {
 
 		return url;
 	}
-	
-	
+
+	public boolean esModerador(String email) {
+
+		Usuario usuario = obtenerUsuarioPorEmail(email);
+
+		return usuario.getRol() == com.example.demo.entity.RolUsuario.MODERADOR;
+	}
 
 }

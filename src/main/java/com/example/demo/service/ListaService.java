@@ -1,5 +1,7 @@
 package com.example.demo.service;
 
+import com.example.demo.repository.UsuarioRepository;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -28,23 +30,30 @@ public class ListaService {
 	private final ListaObraRepository listaObraRepository;
 	private final ObraRepository obraRepository;
 	private final PerfilService perfilService;
+	private final UsuarioRepository usuarioRepository;
 
 	public ListaService(ListaRepository listaRepository, ListaObraRepository listaObraRepository,
-			ObraRepository obraRepository, PerfilService perfilService) {
+			ObraRepository obraRepository, PerfilService perfilService, UsuarioRepository usuarioRepository) {
+
 		this.listaRepository = listaRepository;
 		this.listaObraRepository = listaObraRepository;
 		this.obraRepository = obraRepository;
 		this.perfilService = perfilService;
+		this.usuarioRepository = usuarioRepository;
 	}
 
 	// H1.6 - Crear una lista.
 	@Transactional
-	public ListaResponse crear(String email, String nombre, boolean publica) {
+	public ListaResponse crear(String email, String nombre, String descripcion, boolean publica) {
 
 		Usuario usuario = perfilService.obtenerUsuarioPorEmail(email);
 		String nombreLimpio = validarNombre(nombre);
 
-		Lista lista = listaRepository.save(new Lista(usuario.getId(), nombreLimpio, publica));
+		Lista lista = new Lista(usuario.getId(), nombreLimpio, publica);
+
+		lista.setDescripcion(descripcion);
+
+		lista = listaRepository.save(lista);
 
 		return convertir(lista);
 	}
@@ -86,17 +95,24 @@ public class ListaService {
 					obra.getTipo() == null ? "" : obra.getTipo().name()));
 		}
 
-		return new ListaDetalleResponse(lista.getId(), lista.getNombre(), lista.isPublica(), esMia, obras);
+		Usuario propietario = usuarioRepository.findById(lista.getUsuarioId()).orElse(null);
+
+		String creador = propietario != null ? propietario.getNombre() : "Desconocido";
+
+		return new ListaDetalleResponse(lista.getId(), lista.getNombre(), lista.isPublica(), esMia,
+				lista.getDescripcion(), creador, obras);
 	}
 
 	// H1.6 - Modificar nombre y visibilidad.
 	@Transactional
-	public ListaResponse modificar(String email, Long listaId, String nombre, boolean publica) {
+	public ListaResponse modificar(String email, Long listaId, String nombre, String descripcion, boolean publica) {
 
 		Lista lista = obtenerListaPropia(email, listaId);
 
 		lista.setNombre(validarNombre(nombre));
 		lista.setPublica(publica);
+
+		lista.setDescripcion(descripcion);
 
 		return convertir(listaRepository.save(lista));
 	}
@@ -190,7 +206,33 @@ public class ListaService {
 	}
 
 	private ListaResponse convertir(Lista lista) {
+
+		Usuario usuario = usuarioRepository.findById(lista.getUsuarioId()).orElse(null);
+
+		String creador = usuario != null ? usuario.getNombre() : "Desconocido";
+
 		return new ListaResponse(lista.getId(), lista.getNombre(), lista.isPublica(),
-				listaObraRepository.countByListaId(lista.getId()));
+				listaObraRepository.countByListaId(lista.getId()), lista.getDescripcion(), creador);
 	}
+
+	@Transactional(readOnly = true)
+	public List<ListaResponse> obtenerListasPublicas() {
+
+		return listaRepository.findByPublicaTrue().stream().map(this::convertir).toList();
+	}
+
+	@Transactional(readOnly = true)
+	public List<ListaResponse> buscarListas(String texto) {
+
+		return listaRepository.findByPublicaTrueAndNombreContainingIgnoreCase(texto).stream().map(this::convertir)
+				.toList();
+	}
+
+	@Transactional(readOnly = true)
+	public List<ListaResponse> obtenerSugerenciasListas(String texto) {
+
+		return listaRepository.findTop5ByPublicaTrueAndNombreStartingWithIgnoreCase(texto).stream().map(this::convertir)
+				.toList();
+	}
+
 }

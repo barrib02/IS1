@@ -21,6 +21,9 @@ public class Lista {
 
     @Column(nullable = false, length = 100)
     private String nombre;
+    
+    @Column(length = 500)
+    private String descripcion;
 
     // Privada por defecto.
     @Column(nullable = false)
@@ -62,4 +65,13 @@ public class Lista {
     public void setPublica(boolean publica) {
         this.publica = publica;
     }
+    
+    public void setDescripcion(String desc) {
+    	this.descripcion=desc;
+    }
+    
+    public String getDescripcion() {
+    	return this.descripcion;
+    }
+    
 }

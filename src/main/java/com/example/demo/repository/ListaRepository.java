@@ -8,5 +8,12 @@ import com.example.demo.entity.Lista;
 
 public interface ListaRepository extends JpaRepository<Lista, Long> {
 
-    List<Lista> findByUsuarioId(Long usuarioId);
+	List<Lista> findByUsuarioId(Long usuarioId);
+
+	List<Lista> findByPublicaTrue();
+
+	List<Lista> findByPublicaTrueAndNombreContainingIgnoreCase(String nombre);
+
+	List<Lista> findTop5ByPublicaTrueAndNombreStartingWithIgnoreCase(String nombre);
+
 }

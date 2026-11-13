@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Subir obra</title>
+</head>
+<body>
+
+<h1>Subir nueva obra</h1>
+
+<input id="titulo" placeholder="Título">
+<br><br>
+
+<input id="autor" placeholder="Autor">
+<br><br>
+
+<select id="tipo">
+
+<option value="LIBRO">
+Libro
+</option>
+
+<option value="PELICULA">
+Película
+</option>
+
+<option value="SERIE">
+Serie
+</option>
+
+<option value="VIDEOJUEGO">
+Videojuego
+</option>
+
+</select>
+
+<br><br>
+
+<textarea
+id="descripcion">
+</textarea>
+
+<br><br>
+
+<button onclick="guardar()">
+
+Guardar
+
+</button>
+
+<script>
+
+async function guardar(){
+
+await fetch(
+"/api/obras",
+{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+titulo:
+document
+.getElementById("titulo")
+.value,
+
+autor:
+document
+.getElementById("autor")
+.value,
+
+descripcion:
+document
+.getElementById("descripcion")
+.value,
+
+tipo:
+document
+.getElementById("tipo")
+.value
+})
+});
+
+alert(
+"Obra enviada para validación"
+);
+
+}
+
+</script>
+
+</body>
+</html>

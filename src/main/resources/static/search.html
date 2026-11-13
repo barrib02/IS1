@@ -9,6 +9,20 @@
 		Mi perfil</button>
 	<h1>Buscar obras</h1>
 
+	<p>
+
+	    <button id="modoObras">
+	        Obras
+	    </button>
+
+	    <button id="modoListas">
+	        Listas
+	    </button>
+
+	</p>
+
+	
+	
 	<input type="text" id="titulo" placeholder="Buscar obra">
 
 	<div id="sugerencias"></div>
@@ -42,29 +56,66 @@ document.getElementById("buscar")
 .addEventListener("click", buscar);
 
 document
+.getElementById("modoObras")
+.addEventListener("click", () => {
+
+    modo = "obras";
+
+});
+
+document
+.getElementById("modoListas")
+.addEventListener("click", () => {
+
+    modo = "listas";
+
+});
+
+document
 .getElementById("titulo")
 .addEventListener("input", sugerir);
 
 async function buscar() {
 
-    const titulo =
-        document.getElementById("titulo").value;
+    const texto =
+        document
+        .getElementById("titulo")
+        .value;
 
-    const tipo =
-        document.getElementById("tipo").value;
+    if(modo === "obras") {
 
-    const respuesta =
-        await fetch(
-            "/search?titulo="
-            + encodeURIComponent(titulo)
-            + "&tipo="
-            + encodeURIComponent(tipo)
-        );
+        const tipo =
+            document
+            .getElementById("tipo")
+            .value;
 
-    const obras =
-        await respuesta.json();
+        const respuesta =
+            await fetch(
+                "/search?titulo="
+                + encodeURIComponent(texto)
+                + "&tipo="
+                + encodeURIComponent(tipo)
+            );
 
-    mostrarResultados(obras);
+        const obras =
+            await respuesta.json();
+
+        mostrarResultados(obras);
+
+    } else {
+
+        const respuesta =
+            await fetch(
+                "/api/listas/buscar?texto="
+                + encodeURIComponent(texto)
+            );
+
+        const listas =
+            await respuesta.json();
+
+        mostrarResultadosListas(listas);
+
+    }
 }
 
 async function sugerir(){
@@ -81,16 +132,34 @@ async function sugerir(){
         return;
     }
 
-    const respuesta =
-        await fetch(
-            "/sugerencias?texto="
-            + encodeURIComponent(texto)
-        );
+    if(modo === "obras"){
 
-    const obras =
-        await respuesta.json();
+        const respuesta =
+            await fetch(
+                "/sugerencias?texto="
+                + encodeURIComponent(texto)
+            );
 
-    mostrarSugerencias(obras);
+        const obras =
+            await respuesta.json();
+
+        mostrarSugerencias(obras);
+
+    }else{
+
+        const respuesta =
+            await fetch(
+                "/api/listas/sugerencias?texto="
+                + encodeURIComponent(texto)
+            );
+
+        const listas =
+            await respuesta.json();
+
+        mostrarSugerenciasListas(listas);
+
+    }
+
 }
 
 function mostrarSugerencias(obras){
@@ -121,10 +190,47 @@ function mostrarSugerencias(obras){
     });
 }
 
+function mostrarSugerenciasListas(listas){
+
+    const div =
+        document.getElementById(
+            "sugerencias"
+        );
+
+    div.innerHTML = "";
+
+    listas.forEach(lista => {
+
+        div.innerHTML +=
+        `
+        <div
+            onclick="abrirLista(${lista.id})"
+            style="
+                cursor:pointer;
+                padding:5px;
+                border-bottom:1px solid lightgray;
+            ">
+
+            ${lista.nombre}
+
+        </div>
+        `;
+
+    });
+
+}
+
 function abrirObra(id){
 
     window.location.href =
         "/work.html?id=" + id;
+}
+
+function abrirLista(id){
+
+    window.location.href =
+        "lista.html?id=" + id;
+
 }
 
 function mostrarResultados(obras) {
@@ -160,6 +266,55 @@ function mostrarResultados(obras) {
         <hr>
         `;
     });
+}
+
+function mostrarResultadosListas(listas) {
+
+    const div =
+        document.getElementById(
+            "resultados"
+        );
+
+    div.innerHTML = "";
+
+    if(listas.length === 0){
+
+        div.innerHTML =
+        "<p>No se encontraron listas</p>";
+
+        return;
+    }
+
+    listas.forEach(lista => {
+
+        div.innerHTML += `
+
+        <div>
+
+            <h3>
+
+                <a href="lista.html?id=${lista.id}">
+                    ${lista.nombre}
+                </a>
+
+            </h3>
+
+            <p>
+                Creador:
+                ${lista.creador}
+            </p>
+
+            <p>
+                ${lista.descripcion ?? ""}
+            </p>
+
+        </div>
+
+        <hr>
+        `;
+
+    });
+
 }
 
 </script>

@@ -8,6 +8,8 @@ public class ListaRequest {
     @NotBlank(message = "El nombre de la lista es obligatorio")
     @Size(max = 100, message = "El nombre no puede superar los 100 caracteres")
     private String nombre;
+    
+    private String descripcion;
 
     private boolean publica;
 
@@ -26,4 +28,13 @@ public class ListaRequest {
     public void setPublica(boolean publica) {
         this.publica = publica;
     }
+    
+    public void setDescripcion(String desc) {
+    	this.descripcion=desc;
+    }
+    
+    public String getDescripcion() {
+    	return this.descripcion;
+    }
+    
 }

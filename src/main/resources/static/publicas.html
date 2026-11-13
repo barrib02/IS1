@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Listas Públicas</title>
+</head>
+<body>
+
+<h1>Listas Públicas</h1>
+
+<div id="listas"></div>
+
+<script>
+
+async function cargar(){
+
+    const respuesta =
+        await fetch("/api/listas/publicas");
+
+    const listas =
+        await respuesta.json();
+
+    let html = "";
+
+    listas.forEach(lista => {
+
+		html += `
+		<div>
+
+		    <h3>
+		        <a href="lista.html?id=${lista.id}">
+		            ${lista.nombre}
+		        </a>
+		    </h3>
+
+		    <p>
+		        <b>Creador:</b>
+		        ${lista.creador}
+		    </p>
+
+		    <p>
+		        ${lista.descripcion ?? ""}
+		    </p>
+
+		</div>
+
+		<hr>
+		`;
+
+    });
+
+    document.getElementById("listas")
+        .innerHTML = html;
+
+}
+
+cargar();
+
+</script>
+
+</body>
+</html>

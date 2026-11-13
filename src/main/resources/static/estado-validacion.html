@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+</head>
+<body>
+
+<h1>
+Estado de validación
+</h1>
+
+<p id="estado"></p>
+
+<script>
+
+const id =
+new URLSearchParams(
+window.location.search
+).get("id");
+
+async function cargar(){
+
+const respuesta =
+await fetch(
+"/api/obras/"
++id+
+"/validacion"
+);
+
+const estado =
+await respuesta.json();
+
+document
+.getElementById("estado")
+.textContent =
+estado;
+
+}
+
+cargar();
+
+</script>
+
+</body>
+</html>

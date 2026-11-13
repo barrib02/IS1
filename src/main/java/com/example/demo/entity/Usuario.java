@@ -1,6 +1,7 @@
 
 package com.example.demo.entity;
-
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import java.time.LocalDateTime;
 
 import jakarta.persistence.*;
@@ -47,6 +48,9 @@ public class Usuario {
 	// H4.4 - URL del banner
 	@Column(name = "banner_url")
 	private String bannerUrl;
+	
+	@Enumerated(EnumType.STRING)
+	private RolUsuario rol = RolUsuario.USUARIO;
 
 	// Constructor vacío necesario para JPA.
 	public Usuario() {
@@ -64,6 +68,14 @@ public class Usuario {
 
 	public Long getId() {
 		return id;
+	}
+	
+	public RolUsuario getRol() {
+	    return rol;
+	}
+	
+	public void setRol(RolUsuario rol) {
+	    this.rol = rol;
 	}
 
 	public String getNombre() {

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Validar obras</title>
+</head>
+
+<body>
+
+<h1>Obras pendientes</h1>
+
+<div id="obras"></div>
+
+<script>
+
+async function cargar(){
+
+    const respuesta =
+        await fetch(
+            "/api/obras/pendientes"
+        );
+
+    const obras =
+        await respuesta.json();
+
+    let html = "";
+
+    obras.forEach(obra=>{
+
+        html += `
+
+        <div>
+
+            <h3>${obra.titulo}</h3>
+
+            <p>
+                Autor:
+                ${obra.autor}
+            </p>
+
+            <p>
+                ${obra.descripcion}
+            </p>
+
+            <button
+                onclick="validar(${obra.id})">
+
+                Validar
+
+            </button>
+
+            <button
+                onclick="rechazar(${obra.id})">
+
+                Rechazar
+
+            </button>
+
+        </div>
+
+        <hr>
+
+        `;
+
+    });
+
+    document
+    .getElementById("obras")
+    .innerHTML = html;
+
+}
+
+async function validar(id){
+
+    await fetch(
+        "/api/obras/" +
+        id +
+        "/validar",
+        {
+            method:"PUT"
+        }
+    );
+
+    cargar();
+}
+
+async function rechazar(id){
+
+    await fetch(
+        "/api/obras/" +
+        id +
+        "/rechazar",
+        {
+            method:"PUT"
+        }
+    );
+
+    cargar();
+}
+
+cargar();
+
+</script>
+
+</body>
+</html>

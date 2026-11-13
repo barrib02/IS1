@@ -1,5 +1,7 @@
 package com.example.demo.controller;
 
+import org.springframework.web.bind.annotation.RequestParam;
+
 import java.util.List;
 
 import org.springframework.http.HttpStatus;
@@ -39,7 +41,7 @@ public class ListaController {
 	@ResponseStatus(HttpStatus.CREATED)
 	public ListaResponse crear(@Valid @RequestBody ListaRequest request, Authentication auth) {
 
-		return listaService.crear(auth.getName(), request.getNombre(), request.isPublica());
+		return listaService.crear(auth.getName(), request.getNombre(), request.getDescripcion(), request.isPublica());
 	}
 
 	// Mis listas (con contador de obras).
@@ -67,7 +69,8 @@ public class ListaController {
 	public ListaResponse modificar(@PathVariable Long id, @Valid @RequestBody ListaRequest request,
 			Authentication auth) {
 
-		return listaService.modificar(auth.getName(), id, request.getNombre(), request.isPublica());
+		return listaService.modificar(auth.getName(), id, request.getNombre(), request.getDescripcion(),
+				request.isPublica());
 	}
 
 	// Eliminar lista.
@@ -104,5 +107,22 @@ public class ListaController {
 	public String manejarValidacion(MethodArgumentNotValidException error) {
 		return error.getBindingResult().getFieldErrors().get(0).getDefaultMessage();
 	}
-}
 
+	@GetMapping("/publicas")
+	public List<ListaResponse> listasPublicas() {
+		return listaService.obtenerListasPublicas();
+	}
+
+	@GetMapping("/buscar")
+	public List<ListaResponse> buscarListas(@RequestParam String texto) {
+
+		return listaService.buscarListas(texto);
+	}
+
+	@GetMapping("/sugerencias")
+	public List<ListaResponse> sugerencias(@RequestParam String texto) {
+
+		return listaService.obtenerSugerenciasListas(texto);
+	}
+
+}

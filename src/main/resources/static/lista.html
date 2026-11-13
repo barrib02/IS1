@@ -79,6 +79,19 @@
 
     <section class="tarjeta">
         <h1 id="nombreLista">Lista</h1>
+		
+		<p id="creadorLista"></p>
+
+		<p id="descripcionLista"></p>
+		
+		<button id="copiarEnlace">
+		Copiar enlace
+		</button>
+		
+		<button id="compartir">
+		    Compartir
+		</button>
+		
         <p>
             <span id="visibilidad" class="etiqueta"></span>
             <span id="contador"></span>
@@ -90,6 +103,7 @@
 
 <script>
     const listaId = new URLSearchParams(window.location.search).get("id");
+		let modo = "obras";
 
     let lista = null;
 
@@ -144,6 +158,17 @@
 
     function pintar() {
         document.getElementById("nombreLista").textContent = lista.nombre;
+		
+		document
+		.getElementById("creadorLista")
+		.textContent =
+		"Creador: " + lista.creador;
+
+		document
+		.getElementById("descripcionLista")
+		.textContent =
+		lista.descripcion || "";
+		
         document.title = lista.nombre + " - Shelfie";
 
         const visibilidad = document.getElementById("visibilidad");
@@ -221,6 +246,48 @@
     }
 
     iniciar();
+	
+	document
+	.getElementById("copiarEnlace")
+	.addEventListener("click", async function(){
+
+	    await navigator.clipboard.writeText(
+	        window.location.href
+	    );
+
+	    alert(
+	        "Enlace copiado"
+	    );
+
+	});
+	
+	
+	document
+	.getElementById("compartir")
+	.addEventListener("click", async function(){
+
+	    if(navigator.share){
+
+	        try{
+
+	            await navigator.share({
+	                title: lista.nombre,
+	                text: "Mira esta lista de Shelfie",
+	                url: window.location.href
+	            });
+
+	        }catch(e){}
+
+	    }else{
+
+	        alert(
+	            "Tu navegador no soporta compartir."
+	        );
+
+	    }
+
+	});
+	
 </script>
 
 </body>
