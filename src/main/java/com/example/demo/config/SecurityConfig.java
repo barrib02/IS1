@@ -65,7 +65,7 @@ public class SecurityConfig {
 						.requestMatchers(HttpMethod.POST, "/api/auth/registro", "/api/auth/login").permitAll()
 
 						// H6.1 - Verificación del correo electrónico.
-						.requestMatchers(HttpMethod.GET, "/api/auth/verificar").permitAll()
+						.requestMatchers(HttpMethod.GET, "/search", "/work/*", "/sugerencias", "/explorar/**").permitAll()
 
 						// H6.2 - Cierre de sesión.
 						.requestMatchers(HttpMethod.POST, "/api/auth/logout").authenticated()

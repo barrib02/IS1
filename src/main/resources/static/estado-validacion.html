@@ -2,44 +2,49 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Estado de validación - Shelfie</title>
+<link rel="icon" href="/images/logo.svg">
+<link rel="stylesheet" href="/css/shelfie.css">
+<script src="/js/shelfie.js"></script>
 </head>
 <body>
 
-<h1>
-Estado de validación
-</h1>
+<div id="navbar"></div>
 
-<p id="estado"></p>
+<main class="contenedor">
+	<section class="tarjeta">
+		<h1>Estado de validación</h1>
+		<p id="estado" class="msg" role="status">Cargando…</p>
+		<p><a href="/search.html">Volver al buscador</a></p>
+	</section>
+</main>
 
 <script>
+const id = new URLSearchParams(window.location.search).get("id");
 
-const id =
-new URLSearchParams(
-window.location.search
-).get("id");
+async function cargar() {
+	const caja = document.getElementById("estado");
 
-async function cargar(){
+	if (!id) {
+		caja.className = "msg error";
+		caja.textContent = "Falta el identificador de la obra.";
+		return;
+	}
 
-const respuesta =
-await fetch(
-"/api/obras/"
-+id+
-"/validacion"
-);
+	const r = await Shelfie.api("/api/obras/" + id + "/validacion");
 
-const estado =
-await respuesta.json();
+	if (!r.ok) {
+		caja.className = "msg error";
+		caja.textContent = typeof r.datos === "string" && r.datos ? r.datos : "No se ha podido consultar el estado.";
+		return;
+	}
 
-document
-.getElementById("estado")
-.textContent =
-estado;
-
+	caja.className = "msg";
+	caja.textContent = typeof r.datos === "string" ? r.datos : JSON.stringify(r.datos);
 }
 
 cargar();
-
 </script>
-
 </body>
 </html>

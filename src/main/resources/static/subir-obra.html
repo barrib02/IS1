@@ -2,93 +2,95 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Subir obra</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Subir obra - Shelfie</title>
+<link rel="icon" href="/images/logo.svg">
+<link rel="stylesheet" href="/css/shelfie.css">
+<script src="/js/shelfie.js"></script>
+<style>
+	.formulario { max-width: 600px; margin: 0 auto; }
+</style>
 </head>
 <body>
 
-<h1>Subir nueva obra</h1>
+<div id="navbar"></div>
 
-<input id="titulo" placeholder="Título">
-<br><br>
+<main class="contenedor">
+	<section class="tarjeta formulario">
 
-<input id="autor" placeholder="Autor">
-<br><br>
+		<h1>Subir nueva obra</h1>
 
-<select id="tipo">
+		<div class="grupo">
+			<label for="titulo">Título</label>
+			<input id="titulo" placeholder="Título de la obra">
+		</div>
 
-<option value="LIBRO">
-Libro
-</option>
+		<div class="grupo">
+			<label for="autor">Autor</label>
+			<input id="autor" placeholder="Autor o creador">
+		</div>
 
-<option value="PELICULA">
-Película
-</option>
+		<div class="grupo">
+			<label for="tipo">Tipo</label>
+			<select id="tipo">
+				<option value="LIBRO">Libro</option>
+				<option value="PELICULA">Película</option>
+				<option value="SERIE">Serie</option>
+				<option value="VIDEOJUEGO">Videojuego</option>
+			</select>
+		</div>
 
-<option value="SERIE">
-Serie
-</option>
+		<div class="grupo">
+			<label for="descripcion">Descripción</label>
+			<textarea id="descripcion" placeholder="De qué trata la obra…"></textarea>
+		</div>
 
-<option value="VIDEOJUEGO">
-Videojuego
-</option>
+		<button type="button" class="btn" id="guardar">Guardar</button>
+		<p id="msg" class="msg" role="status" aria-live="polite"></p>
 
-</select>
-
-<br><br>
-
-<textarea
-id="descripcion">
-</textarea>
-
-<br><br>
-
-<button onclick="guardar()">
-
-Guardar
-
-</button>
+	</section>
+</main>
 
 <script>
+const $ = id => document.getElementById(id);
 
-async function guardar(){
-
-await fetch(
-"/api/obras",
-{
-method:"POST",
-headers:{
-"Content-Type":"application/json"
-},
-body:JSON.stringify({
-titulo:
-document
-.getElementById("titulo")
-.value,
-
-autor:
-document
-.getElementById("autor")
-.value,
-
-descripcion:
-document
-.getElementById("descripcion")
-.value,
-
-tipo:
-document
-.getElementById("tipo")
-.value
-})
-});
-
-alert(
-"Obra enviada para validación"
-);
-
+function mostrar(texto, correcto) {
+	$("msg").textContent = texto;
+	$("msg").className = "msg " + (correcto ? "ok" : "error");
 }
 
-</script>
+$("guardar").addEventListener("click", async function () {
+	const obra = {
+		titulo: $("titulo").value.trim(),
+		autor: $("autor").value.trim(),
+		descripcion: $("descripcion").value.trim(),
+		tipo: $("tipo").value
+	};
 
+	if (!obra.titulo || !obra.autor) {
+		mostrar("El título y el autor son obligatorios.", false);
+		return;
+	}
+
+	$("guardar").disabled = true;
+
+	const r = await Shelfie.api("/api/obras", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(obra)
+	});
+
+	$("guardar").disabled = false;
+
+	if (r.ok) {
+		mostrar("Obra enviada para validación.", true);
+		$("titulo").value = "";
+		$("autor").value = "";
+		$("descripcion").value = "";
+	} else {
+		mostrar(typeof r.datos === "string" && r.datos ? r.datos : "No se ha podido enviar la obra.", false);
+	}
+});
+</script>
 </body>
 </html>

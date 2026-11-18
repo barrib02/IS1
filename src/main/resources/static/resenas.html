@@ -2,209 +2,130 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Reseñas - GoodreadsPlus</title>
-
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reseñas - Shelfie</title>
+<link rel="icon" href="/images/logo.svg">
+<link rel="stylesheet" href="/css/shelfie.css">
+<script src="/js/shelfie.js"></script>
 <style>
-body {
-	font-family: Arial, sans-serif;
-	padding: 30px;
-}
-
-textarea {
-	width: 400px;
-	max-width: 100%;
-	height: 150px;
-	padding: 10px;
-}
-
-button {
-	margin-top: 10px;
-	padding: 10px;
-	cursor: pointer;
-}
+	.acciones { display: flex; flex-wrap: wrap; gap: 8px; }
 </style>
 </head>
-
 <body>
 
-	<h1>Escribir una reseña</h1>
+<div id="navbar"></div>
 
-	<label for="obraId">ID de la obra:</label>
-	<input type="number" id="obraId" min="1" value="1">
+<main class="contenedor">
 
-	<br>
-	<br>
+	<section class="tarjeta">
+		<h1>Escribir una reseña</h1>
 
-	<label for="textoResena">Tu reseña:</label>
-	<br>
-	<textarea id="textoResena"
-		placeholder="Escribe aquí tu opinión sobre la obra..."></textarea>
+		<div class="grupo">
+			<label for="obraId">ID de la obra</label>
+			<input type="number" id="obraId" min="1" value="1">
+		</div>
 
-	<p id="contador">0 / 200 palabras</p>
+		<div class="grupo">
+			<label for="textoResena">Tu reseña</label>
+			<textarea id="textoResena" placeholder="Escribe aquí tu opinión sobre la obra…"></textarea>
+			<small id="contador">0 / 200 palabras</small>
+		</div>
 
-	<button id="guardarResena">Guardar reseña</button>
-	<br>
-	<br>
+		<button type="button" class="btn" id="guardarResena">Guardar reseña</button>
+	</section>
 
-	<label for="resenaId">ID de la reseña que quieres editar:</label>
-	<input type="number" id="resenaId" min="1">
+	<section class="tarjeta">
+		<h2>Editar o eliminar una reseña</h2>
 
-	<br>
-	<br>
+		<div class="grupo">
+			<label for="resenaId">ID de la reseña</label>
+			<input type="number" id="resenaId" min="1">
+		</div>
 
-	<button id="editarResena">Editar reseña</button>
-	<br>
-	<br>
+		<div class="acciones">
+			<button type="button" class="btn" id="editarResena">Editar reseña</button>
+			<button type="button" class="btn btn-peligro" id="eliminarResena">Eliminar reseña</button>
+		</div>
 
-	<button id="eliminarResena">Eliminar reseña</button>
+		<p id="mensaje" class="msg" role="status" aria-live="polite"></p>
+	</section>
 
-	<p id="mensaje"></p>
+</main>
 
-	<script>
-	const usuarioId = 1;
-    const textoResena = document.getElementById("textoResena");
-    const contador = document.getElementById("contador");
+<script>
+const JSON_HEADERS = { "Content-Type": "application/json" };
+const textoResena = document.getElementById("textoResena");
+const contador = document.getElementById("contador");
+let usuarioId = null;
 
-    textoResena.addEventListener("input", function() {
-        const texto = textoResena.value.trim();
+Shelfie.obtenerPerfil().then(perfil => { if (perfil) { usuarioId = perfil.id; } });
 
-        const palabras = texto === ""
-            ? 0
-            : texto.split(/\s+/).length;
+function mostrar(texto, correcto) {
+	const mensaje = document.getElementById("mensaje");
+	mensaje.textContent = texto;
+	mensaje.className = "msg " + (correcto ? "ok" : "error");
+}
 
-        contador.textContent = palabras + " / 200 palabras";
+function contarPalabras() {
+	const texto = textoResena.value.trim();
+	const palabras = texto === "" ? 0 : texto.split(/\s+/).length;
+	contador.textContent = palabras + " / 200 palabras";
+	contador.style.color = palabras > 200 ? "var(--error)" : "inherit";
+	return palabras;
+}
+textoResena.addEventListener("input", contarPalabras);
 
-        if (palabras > 200) {
-            contador.style.color = "red";
-        } else {
-            contador.style.color = "black";
-        }
-    });
-    
-    document.getElementById("guardarResena").addEventListener("click", async function() {
+// Comprueba el texto antes de enviarlo; devuelve true si es válido.
+function textoValido() {
+	const palabras = contarPalabras();
+	if (palabras === 0) { mostrar("La reseña no puede estar vacía.", false); return false; }
+	if (palabras > 200) { mostrar("La reseña no puede superar las 200 palabras.", false); return false; }
+	return true;
+}
 
-        const obraId = Number(document.getElementById("obraId").value);
-        const texto = textoResena.value.trim();
-        const mensaje = document.getElementById("mensaje");
+document.getElementById("guardarResena").addEventListener("click", async function () {
+	const obraId = Number(document.getElementById("obraId").value);
 
-        const palabras = texto === "" ? 0 : texto.split(/\s+/).length;
+	if (usuarioId === null) { mostrar("Inicia sesión para escribir una reseña.", false); return; }
+	if (!Number.isInteger(obraId) || obraId < 1) { mostrar("Introduce un ID de obra válido.", false); return; }
+	if (!textoValido()) { return; }
 
-        if (!Number.isInteger(obraId) || obraId < 1) {
-            mensaje.textContent = "Introduce un ID de obra válido.";
-            return;
-        }
+	const r = await Shelfie.api("/api/resenas", {
+		method: "POST", headers: JSON_HEADERS,
+		body: JSON.stringify({ obraId, usuarioId, texto: textoResena.value.trim() })
+	});
 
-        if (palabras === 0) {
-            mensaje.textContent = "La reseña no puede estar vacía.";
-            return;
-        }
+	if (r.ok) {
+		mostrar("¡Reseña guardada correctamente! ID: " + r.datos.id, true);
+	} else {
+		mostrar(typeof r.datos === "string" && r.datos ? r.datos : "Error al guardar la reseña.", false);
+	}
+});
 
-        if (palabras > 200) {
-            mensaje.textContent = "La reseña no puede superar las 200 palabras.";
-            return;
-        }
+document.getElementById("editarResena").addEventListener("click", async function () {
+	const resenaId = Number(document.getElementById("resenaId").value);
 
-        try {
-            const respuesta = await fetch("/api/resenas", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    obraId: obraId,
-					usuarioId: usuarioId,
-                    texto: texto
-                })
-            });
+	if (!Number.isInteger(resenaId) || resenaId < 1) { mostrar("Introduce un ID de reseña válido.", false); return; }
+	if (!textoValido()) { return; }
 
-            if (respuesta.ok) {
-                const resenaGuardada = await respuesta.json();
-                mensaje.textContent = "¡Reseña guardada correctamente! ID: " + resenaGuardada.id;
-            } else {
-                mensaje.textContent = "Error al guardar la reseña.";
-            }
+	const r = await Shelfie.api("/api/resenas/" + resenaId, {
+		method: "PUT", headers: JSON_HEADERS,
+		body: JSON.stringify({ texto: textoResena.value.trim() })
+	});
 
-        } catch (error) {
-            mensaje.textContent = "No se ha podido conectar con el servidor.";
-        }
-    });
-    
-    document.getElementById("editarResena").addEventListener("click", async function() {
+	mostrar(r.ok ? "¡Reseña editada correctamente!" : "Error al editar la reseña. Comprueba el ID.", r.ok);
+});
 
-        const resenaId = Number(document.getElementById("resenaId").value);
-        const texto = textoResena.value.trim();
-        const mensaje = document.getElementById("mensaje");
+document.getElementById("eliminarResena").addEventListener("click", async function () {
+	const resenaId = Number(document.getElementById("resenaId").value);
 
-        const palabras = texto === "" ? 0 : texto.split(/\s+/).length;
+	if (!Number.isInteger(resenaId) || resenaId < 1) { mostrar("Introduce un ID de reseña válido.", false); return; }
+	if (!confirm("¿Seguro que quieres eliminar esta reseña?")) { return; }
 
-        if (!Number.isInteger(resenaId) || resenaId < 1) {
-            mensaje.textContent = "Introduce un ID de reseña válido.";
-            return;
-        }
+	const r = await Shelfie.api("/api/resenas/" + resenaId, { method: "DELETE" });
 
-        if (palabras === 0) {
-            mensaje.textContent = "La reseña no puede estar vacía.";
-            return;
-        }
-
-        if (palabras > 200) {
-            mensaje.textContent = "La reseña no puede superar las 200 palabras.";
-            return;
-        }
-
-        try {
-            const respuesta = await fetch("/api/resenas/" + resenaId, {
-                method: "PUT",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    texto: texto
-                })
-            });
-
-            if (respuesta.ok) {
-                mensaje.textContent = "¡Reseña editada correctamente!";
-            } else {
-                mensaje.textContent = "Error al editar la reseña. Comprueba el ID.";
-            }
-
-        } catch (error) {
-            mensaje.textContent = "No se ha podido conectar con el servidor.";
-        }
-    });
-    document.getElementById("eliminarResena").addEventListener("click", async function() {
-
-        const resenaId = Number(document.getElementById("resenaId").value);
-        const mensaje = document.getElementById("mensaje");
-
-        if (!Number.isInteger(resenaId) || resenaId < 1) {
-            mensaje.textContent = "Introduce un ID de reseña válido.";
-            return;
-        }
-
-        const confirmar = confirm("¿Seguro que quieres eliminar esta reseña?");
-
-        if (!confirmar) {
-            return;
-        }
-
-        try {
-            const respuesta = await fetch("/api/resenas/" + resenaId, {
-                method: "DELETE"
-            });
-
-            if (respuesta.ok) {
-                mensaje.textContent = "¡Reseña eliminada correctamente!";
-            } else {
-                mensaje.textContent = "Error al eliminar la reseña. Comprueba el ID.";
-            }
-
-        } catch (error) {
-            mensaje.textContent = "No se ha podido conectar con el servidor.";
-        }
-    });
-    
+	mostrar(r.ok ? "¡Reseña eliminada correctamente!" : "Error al eliminar la reseña. Comprueba el ID.", r.ok);
+});
 </script>
 </body>
 </html>

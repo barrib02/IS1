@@ -2,397 +2,224 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Valorar una obra - GoodreadsPlus</title>
-
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Valorar una obra - Shelfie</title>
+<link rel="icon" href="/images/logo.svg">
+<link rel="stylesheet" href="/css/shelfie.css">
+<script src="/js/shelfie.js"></script>
 <style>
-body {
-	font-family: Arial, sans-serif;
-	padding: 30px;
-}
-
-.estrella {
-	font-size: 40px;
-	color: lightgray;
-	cursor: pointer;
-}
-
-.estrella.seleccionada {
-	color: gold;
-}
+	.acciones { display: flex; flex-wrap: wrap; gap: 8px; }
 </style>
 </head>
-
 <body>
 
-	<h1>Valorar una obra</h1>
-
-	<label for="obraId">ID de la obra:</label>
-	<input type="number" id="obraId" min="1" value="1">
-
-	<br>
-	<br>
-	<button id="cargarValoracion">Cargar valoración</button>
-
-
-	<br>
-	<br>
-
-
-	<p>Selecciona una puntuación del 1 al 5:</p>
-
-	<div id="estrellas">
-		<span class="estrella" data-valor="1">★</span> <span class="estrella"
-			data-valor="2">★</span> <span class="estrella" data-valor="3">★</span>
-		<span class="estrella" data-valor="4">★</span> <span class="estrella"
-			data-valor="5">★</span>
-	</div>
-
-	<p id="resultado">Todavía no has seleccionado ninguna puntuación.</p>
-
-	<label for="textoResena">Reseña (opcional):</label>
-	<br>
-
-	<textarea id="textoResena" rows="5" cols="45"
-		placeholder="Escribe tu opinión si quieres..."></textarea>
-
-	<p id="contadorPalabras">0 / 200 palabras</p>
-
-	<br>
-
-
-
-
-
-
-
-
-	<button id="guardarValoracion">Guardar valoración</button>
-	<button id="eliminarValoracion">Eliminar valoración y reseña</button>
-	<br>
-	<br>
-
-
-
-	<p id="mensajeGuardado"></p>
-
-	<script>
-		const usuarioId = 1;
-        const estrellas = document.querySelectorAll(".estrella");
-        const resultado = document.getElementById("resultado");
-        let puntuacionSeleccionada = 0;
-        
-        let valoracionActualId = null;
-        let resenaActualId = null;
-        
-        let obraCargadaId = null;
-        
-        document.getElementById("obraId").addEventListener("input", function() {
-            valoracionActualId = null;
-            resenaActualId = null;
-            puntuacionSeleccionada = 0;
-            obraCargadaId = null;
-
-            estrellas.forEach(estrella => {
-                estrella.classList.remove("seleccionada");
-            });
-
-            resultado.textContent = "Pulsa Cargar valoración para consultar esta obra.";
-
-            const cuadroResena = document.getElementById("textoResena");
-            cuadroResena.value = "";
-            cuadroResena.dispatchEvent(new Event("input"));
-        });
-        
-        document.getElementById("cargarValoracion").addEventListener("click", async function() {
-
-        	const obraId = Number(document.getElementById("obraId").value);
-        	obraCargadaId = null;
-        	let valoracionId;
-            const mensaje = document.getElementById("mensajeGuardado");
-
-            if (!Number.isInteger(obraId) || obraId < 1) {
-                mensaje.textContent = "Introduce un ID de valoración válido.";
-                return;
-            }
-
-            try {
-				const respuesta = await fetch(
-				    "/api/valoraciones/obra/" +
-				    obraId +
-				    "/usuario/" +
-				    usuarioId
-				);
-
-            	if (respuesta.ok) {
-            	    obraCargadaId = obraId;
-            	}
-            	if (!respuesta.ok || respuesta.status === 204) {
-            	    valoracionActualId = null;
-            	    resenaActualId = null;
-            	    puntuacionSeleccionada = 0;
-            	    obraCargadaId = obraId;
-
-            	    estrellas.forEach(estrella => {
-            	        estrella.classList.remove("seleccionada");
-            	    });
-
-            	    resultado.textContent = "Todavía no has seleccionado ninguna puntuación.";
-
-            	    const cuadroResena = document.getElementById("textoResena");
-            	    cuadroResena.value = "";
-            	    cuadroResena.dispatchEvent(new Event("input"));
-
-            	    mensaje.textContent = "Esta obra todavía no tiene valoración. Puedes crear una nueva.";
-            	    return;
-            	}
-            	
-                const valoracion = await respuesta.json();
-                valoracionId = valoracion.id;
-                valoracionActualId = valoracion.id;
-                resenaActualId = null;
-
-                // Mostrar el ID de la obra guardada
-                document.getElementById("obraId").value = valoracion.obraId;
-
-                // Recuperar la puntuación
-                puntuacionSeleccionada = valoracion.puntuacion;
-
-                // Pintar las estrellas correspondientes
-                estrellas.forEach(estrella => {
-                    const valor = Number(estrella.dataset.valor);
-                    estrella.classList.toggle("seleccionada", valor <= puntuacionSeleccionada);
-                });
-
-                resultado.textContent = "Has seleccionado " + puntuacionSeleccionada + " estrellas.";
-               
-				// Recuperar la reseña del usuario para esta obra
-				const respuestaResena = await fetch(
-				    "/api/resenas/obra/" +
-				    obraId +
-				    "/usuario/" +
-				    usuarioId
-				);
-
-                const cuadroResena = document.getElementById("textoResena");
-
-                if (respuestaResena.ok) {
-                    const resena = await respuestaResena.json();
-                    resenaActualId = resena.id;
-                    cuadroResena.value = resena.texto;
-                } else {
-                    resenaActualId = null;
-                    cuadroResena.value = "";
-                }
-
-                // Actualizar el contador de palabras
-                cuadroResena.dispatchEvent(new Event("input"));
-                
-                mensaje.textContent = "¡Valoración cargada correctamente!";
-
-            } catch (error) {
-                mensaje.textContent = "No se ha podido conectar con el servidor.";
-            }
-        });
-
-        estrellas.forEach(estrella => {
-            estrella.addEventListener("click", function() {
-                const puntuacion = Number(this.dataset.valor);
-                puntuacionSeleccionada = puntuacion;
-
-                estrellas.forEach(e => {
-                    const valor = Number(e.dataset.valor);
-                    e.classList.toggle("seleccionada", valor <= puntuacion);
-                });
-
-                resultado.textContent = "Has seleccionado " + puntuacion + " estrellas.";
-            });
-        });
-        
-        document.getElementById("guardarValoracion").addEventListener("click", async function() {
-
-            const obraId = Number(document.getElementById("obraId").value);
-            const texto = document.getElementById("textoResena").value.trim();
-            const mensaje = document.getElementById("mensajeGuardado");
-
-            const palabras = texto === "" ? 0 : texto.split(/\s+/).length;
-
-            if (obraCargadaId !== obraId) {
-                mensaje.textContent = "Primero pulsa Cargar valoración para esta obra.";
-                return;
-            }
-            
-            if (!Number.isInteger(obraId) || obraId < 1) {
-                mensaje.textContent = "Introduce un ID de obra válido.";
-                return;
-            }
-
-            if (puntuacionSeleccionada === 0) {
-                mensaje.textContent = "Debes seleccionar las estrellas.";
-                return;
-            }
-
-            if (palabras > 200) {
-                mensaje.textContent = "La reseña no puede superar las 200 palabras.";
-                return;
-            }
-
-            try {
-                // Primero guardamos las estrellas
-               const respuestaValoracion = await fetch(
-   					 valoracionActualId === null
-        				? "/api/valoraciones"
-        				: "/api/valoraciones/" + valoracionActualId,
-   				 {
-       			 method: valoracionActualId === null ? "POST" : "PUT",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-					body: JSON.stringify(
-					    valoracionActualId === null
-					        ? {
-					            usuarioId,
-					            obraId,
-					            puntuacion: puntuacionSeleccionada
-					          }
-					        : {
-					            puntuacion: puntuacionSeleccionada
-					          }
-					)
-                });
-
-                if (!respuestaValoracion.ok) {
-                    mensaje.textContent = "Error al guardar las estrellas.";
-                    return;
-                }
-                
-                const valoracionGuardada = await respuestaValoracion.json();
-                valoracionActualId = valoracionGuardada.id;
-
-                // Si el texto está vacío, terminamos aquí
-                if (texto === "") {
-                    mensaje.textContent = "¡Estrellas guardadas correctamente!";
-                    return;
-                }
-
-                // Si hay texto, guardamos también la reseña
-                const respuestaResena = await fetch(
-    				resenaActualId === null
-       					 ? "/api/resenas"
-       					 : "/api/resenas/" + resenaActualId,
-    				{
-       				 method: resenaActualId === null ? "POST" : "PUT",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-					body: JSON.stringify(
-					    resenaActualId === null
-					        ? {
-					            usuarioId,
-					            obraId,
-					            valoracionId: valoracionGuardada.id,
-					            texto
-					          }
-					        : {
-					            texto
-					          }
-					)
-                });
-
-                if (respuestaResena.ok) {
-                	const resenaGuardada = await respuestaResena.json();
-                	resenaActualId = resenaGuardada.id;
-                    mensaje.textContent = "¡Estrellas y reseña guardadas correctamente!";
-                } else {
-                    mensaje.textContent = "Las estrellas se han guardado, pero la reseña no.";
-                }
-
-            } catch (error) {
-                mensaje.textContent = "Error de conexión. Comprueba los datos guardados antes de reintentar.";
-            }
-        });
-        
-        
-        
-        
-        
-        const textoResena = document.getElementById("textoResena");
-        const contadorPalabras = document.getElementById("contadorPalabras");
-
-        textoResena.addEventListener("input", function() {
-            const texto = textoResena.value.trim();
-
-            const palabras = texto === ""
-                ? 0
-                : texto.split(/\s+/).length;
-
-            contadorPalabras.textContent = palabras + " / 200 palabras";
-
-            if (palabras > 200) {
-                contadorPalabras.style.color = "red";
-            } else {
-                contadorPalabras.style.color = "black";
-            }
-        });
-        
-        document.getElementById("eliminarValoracion").addEventListener("click", async function() {
-            const mensaje = document.getElementById("mensajeGuardado");
-
-            if (valoracionActualId === null) {
-                mensaje.textContent = "Primero carga una valoración para eliminarla.";
-                return;
-            }
-
-            const confirmar = confirm("¿Seguro que quieres eliminar las estrellas y la reseña?");
-            if (!confirmar) {
-                return;
-            }
-
-            try {
-                // Primero eliminamos la reseña, si existe
-                if (resenaActualId !== null) {
-                    const respuestaResena = await fetch("/api/resenas/" + resenaActualId, {
-                        method: "DELETE"
-                    });
-
-                    if (!respuestaResena.ok) {
-                        mensaje.textContent = "No se ha podido eliminar la reseña.";
-                        return;
-                    }
-                }
-
-                // Después eliminamos la valoración
-                const respuestaValoracion = await fetch("/api/valoraciones/" + valoracionActualId, {
-                    method: "DELETE"
-                });
-
-                if (!respuestaValoracion.ok) {
-                    mensaje.textContent = "No se ha podido eliminar la valoración.";
-                    return;
-                }
-
-                // Limpiamos el formulario
-                valoracionActualId = null;
-                resenaActualId = null;
-                puntuacionSeleccionada = 0;
-
-                estrellas.forEach(estrella => {
-                    estrella.classList.remove("seleccionada");
-                });
-
-                resultado.textContent = "Todavía no has seleccionado ninguna puntuación.";
-
-                const cuadroResena = document.getElementById("textoResena");
-                cuadroResena.value = "";
-                cuadroResena.dispatchEvent(new Event("input"));
-
-                mensaje.textContent = "¡Valoración y reseña eliminadas correctamente!";
-
-            } catch (error) {
-                mensaje.textContent = "Error de conexión al intentar eliminar.";
-            }
-        });
-        
-    </script>
-
+<div id="navbar"></div>
+
+<main class="contenedor">
+	<section class="tarjeta">
+
+		<h1>Valorar una obra</h1>
+
+		<div class="grupo">
+			<label for="obraId">ID de la obra</label>
+			<input type="number" id="obraId" min="1" value="1">
+		</div>
+
+		<button type="button" class="btn" id="cargarValoracion">Cargar valoración</button>
+
+		<div class="grupo" style="margin-top:20px">
+			<span class="etiqueta">Tu puntuación</span>
+			<div id="estrellas"></div>
+			<small id="resultado">Todavía no has seleccionado ninguna puntuación.</small>
+		</div>
+
+		<div class="grupo">
+			<label for="textoResena">Reseña (opcional)</label>
+			<textarea id="textoResena" rows="5" placeholder="Escribe tu opinión si quieres…"></textarea>
+			<small id="contadorPalabras">0 / 200 palabras</small>
+		</div>
+
+		<div class="acciones">
+			<button type="button" class="btn" id="guardarValoracion">Guardar valoración</button>
+			<button type="button" class="btn btn-peligro" id="eliminarValoracion">Eliminar valoración y reseña</button>
+		</div>
+
+		<p id="mensajeGuardado" class="msg" role="status" aria-live="polite"></p>
+
+	</section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const JSON_HEADERS = { "Content-Type": "application/json" };
+
+let usuarioId = null;
+let valoracionActualId = null;
+let resenaActualId = null;
+let obraCargadaId = null;
+
+const estrellas = Shelfie.estrellas($("estrellas"), { onChange: actualizarResultado });
+
+Shelfie.obtenerPerfil().then(perfil => { if (perfil) { usuarioId = perfil.id; } });
+
+function mostrar(texto, correcto) {
+	$("mensajeGuardado").textContent = texto;
+	$("mensajeGuardado").className = "msg " + (correcto ? "ok" : "error");
+}
+
+function actualizarResultado() {
+	const n = estrellas.get();
+	$("resultado").textContent = n === 0
+		? "Todavía no has seleccionado ninguna puntuación."
+		: "Has seleccionado " + n + (n === 1 ? " estrella." : " estrellas.");
+}
+
+function contarPalabras() {
+	const texto = $("textoResena").value.trim();
+	const palabras = texto === "" ? 0 : texto.split(/\s+/).length;
+	$("contadorPalabras").textContent = palabras + " / 200 palabras";
+	$("contadorPalabras").style.color = palabras > 200 ? "var(--error)" : "inherit";
+	return palabras;
+}
+$("textoResena").addEventListener("input", contarPalabras);
+
+function limpiarFormulario() {
+	valoracionActualId = null;
+	resenaActualId = null;
+	obraCargadaId = null;
+	estrellas.set(0);
+	$("textoResena").value = "";
+	contarPalabras();
+	actualizarResultado();
+}
+
+// Al cambiar el ID de la obra se vacía todo hasta que se vuelva a cargar.
+$("obraId").addEventListener("input", function () {
+	limpiarFormulario();
+	$("resultado").textContent = "Pulsa Cargar valoración para consultar esta obra.";
+});
+
+function obraValida() {
+	const obraId = Number($("obraId").value);
+	if (!Number.isInteger(obraId) || obraId < 1) {
+		mostrar("Introduce un ID de obra válido.", false);
+		return null;
+	}
+	if (usuarioId === null) {
+		mostrar("Inicia sesión para valorar obras.", false);
+		return null;
+	}
+	return obraId;
+}
+
+$("cargarValoracion").addEventListener("click", async function () {
+	const obraId = obraValida();
+	if (obraId === null) { return; }
+
+	limpiarFormulario();
+
+	const [val, res] = await Promise.all([
+		Shelfie.api("/api/valoraciones/obra/" + obraId + "/usuario/" + usuarioId),
+		Shelfie.api("/api/resenas/obra/" + obraId + "/usuario/" + usuarioId)
+	]);
+
+	obraCargadaId = obraId;
+
+	if (!val.ok || !val.datos) {
+		mostrar("Esta obra todavía no tiene valoración. Puedes crear una nueva.", true);
+		return;
+	}
+
+	valoracionActualId = val.datos.id;
+	estrellas.set(val.datos.puntuacion);
+	actualizarResultado();
+
+	if (res.ok && res.datos) {
+		resenaActualId = res.datos.id;
+		$("textoResena").value = res.datos.texto;
+		contarPalabras();
+	}
+
+	mostrar("¡Valoración cargada correctamente!", true);
+});
+
+$("guardarValoracion").addEventListener("click", async function () {
+	const obraId = obraValida();
+	if (obraId === null) { return; }
+
+	const texto = $("textoResena").value.trim();
+
+	if (obraCargadaId !== obraId) { mostrar("Primero pulsa Cargar valoración para esta obra.", false); return; }
+	if (estrellas.get() === 0) { mostrar("Debes seleccionar las estrellas.", false); return; }
+	if (contarPalabras() > 200) { mostrar("La reseña no puede superar las 200 palabras.", false); return; }
+
+	$("guardarValoracion").disabled = true;
+
+	try {
+		const puntuacion = estrellas.get();
+
+		// Estrellas: POST si es nueva, PUT si ya existía.
+		const rVal = valoracionActualId === null
+			? await Shelfie.api("/api/valoraciones", {
+				method: "POST", headers: JSON_HEADERS,
+				body: JSON.stringify({ usuarioId, obraId, puntuacion })
+			})
+			: await Shelfie.api("/api/valoraciones/" + valoracionActualId, {
+				method: "PUT", headers: JSON_HEADERS,
+				body: JSON.stringify({ puntuacion })
+			});
+
+		if (!rVal.ok) { throw new Error("Error al guardar las estrellas."); }
+		valoracionActualId = rVal.datos.id;
+
+		if (texto === "") {
+			mostrar("¡Estrellas guardadas correctamente!", true);
+			return;
+		}
+
+		// Reseña: igual, POST si es nueva y PUT si ya existía.
+		const rRes = resenaActualId === null
+			? await Shelfie.api("/api/resenas", {
+				method: "POST", headers: JSON_HEADERS,
+				body: JSON.stringify({ usuarioId, obraId, valoracionId: valoracionActualId, texto })
+			})
+			: await Shelfie.api("/api/resenas/" + resenaActualId, {
+				method: "PUT", headers: JSON_HEADERS,
+				body: JSON.stringify({ texto })
+			});
+
+		if (!rRes.ok) { throw new Error("Las estrellas se han guardado, pero la reseña no."); }
+		resenaActualId = rRes.datos.id;
+		mostrar("¡Estrellas y reseña guardadas correctamente!", true);
+
+	} catch (error) {
+		mostrar(error.message, false);
+	} finally {
+		$("guardarValoracion").disabled = false;
+	}
+});
+
+$("eliminarValoracion").addEventListener("click", async function () {
+	if (valoracionActualId === null) {
+		mostrar("Primero carga una valoración para eliminarla.", false);
+		return;
+	}
+	if (!confirm("¿Seguro que quieres eliminar las estrellas y la reseña?")) { return; }
+
+	// Primero la reseña (si existe) y después la valoración.
+	if (resenaActualId !== null) {
+		const rRes = await Shelfie.api("/api/resenas/" + resenaActualId, { method: "DELETE" });
+		if (!rRes.ok) { mostrar("No se ha podido eliminar la reseña.", false); return; }
+	}
+
+	const rVal = await Shelfie.api("/api/valoraciones/" + valoracionActualId, { method: "DELETE" });
+	if (!rVal.ok) { mostrar("No se ha podido eliminar la valoración.", false); return; }
+
+	const obraId = obraCargadaId;
+	limpiarFormulario();
+	obraCargadaId = obraId;   // la obra sigue cargada: se puede crear una valoración nueva
+	mostrar("¡Valoración y reseña eliminadas correctamente!", true);
+});
+</script>
 </body>
 </html>

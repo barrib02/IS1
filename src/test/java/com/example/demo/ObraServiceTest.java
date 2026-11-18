@@ -1,128 +1,66 @@
 package com.example.demo;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 
 import com.example.demo.entity.Obra;
 import com.example.demo.entity.TipoObra;
 import com.example.demo.repository.ObraRepository;
 import com.example.demo.service.ObraService;
 
+// Ruta: src/test/java/com/example/demo/service/ObraServiceTest.java
+@ExtendWith(MockitoExtension.class)
 class ObraServiceTest {
 
-    @Test
-    void buscaPorTitulo() {
+	@Mock
+	private ObraRepository obraRepository;
 
-        // Creamos un repositorio falso.
-        ObraRepository repo =
-                mock(ObraRepository.class);
+	@InjectMocks
+	private ObraService obraService;
 
-        // Creamos el servicio 
-        ObraService service =
-                new ObraService(repo);
+	@Test
+	void buscarSinCriteriosUsaPaginacionYNoCargaTodo() {
+		when(obraRepository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(new Obra())));
 
-        // Creamos una obra de ejemplo.
-        Obra obra = new Obra();
-        obra.setTitulo("Harry Potter");
+		assertEquals(1, obraService.buscar(null, null).size());
 
-        // Simulamos la respuesta del repositorio.
-        when(repo.findByTituloContainingIgnoreCase("Harry"))
-                .thenReturn(List.of(obra));
+		verify(obraRepository).findAll(any(Pageable.class));
+		verify(obraRepository, never()).findAll();   // nunca debe cargar todas las obras
+	}
 
-        // Ejecutamos el método que queremos probar.
-        List<Obra> resultado =
-                service.buscar("Harry", null);
+	@Test
+	void buscarPorTituloYTipoUsaLaConsultaCombinada() {
+		when(obraRepository.findByTituloContainingIgnoreCaseAndTipo(eq("dune"), eq(TipoObra.LIBRO), any(Pageable.class)))
+				.thenReturn(List.of(new Obra()));
 
-        // Comprobamos que encontramos una obra.
-        assertEquals(1, resultado.size());
+		assertEquals(1, obraService.buscar("dune", TipoObra.LIBRO).size());
+	}
 
-        // Comprobamos que es la que esperábamos.
-        assertEquals(
-                "Harry Potter",
-                resultado.get(0).getTitulo());
-    }
+	@Test
+	void buscarConTituloEnBlancoSeTrataComoSinTitulo() {
+		when(obraRepository.findByTipo(eq(TipoObra.SERIE), any(Pageable.class))).thenReturn(List.of(new Obra()));
 
-    @Test
-    void buscaPorTipo() {
+		assertEquals(1, obraService.buscar("   ", TipoObra.SERIE).size());
+	}
 
-        ObraRepository repo =
-                mock(ObraRepository.class);
+	@Test
+	void explorarDevuelveLasObrasRecientes() {
+		when(obraRepository.findTop12ByOrderByIdDesc()).thenReturn(List.of(new Obra(), new Obra()));
 
-        ObraService service =
-                new ObraService(repo);
-
-        Obra obra = new Obra();
-        obra.setTipo(TipoObra.LIBRO);
-
-        when(repo.findByTipo(TipoObra.LIBRO))
-                .thenReturn(List.of(obra));
-
-        List<Obra> resultado =
-                service.buscar(null, TipoObra.LIBRO);
-
-        assertEquals(1, resultado.size());
-
-        assertEquals(
-                TipoObra.LIBRO,
-                resultado.get(0).getTipo());
-    }
-
-    @Test
-    void buscaPorTituloYTipo() {
-
-        ObraRepository repo =
-                mock(ObraRepository.class);
-
-        ObraService service =
-                new ObraService(repo);
-
-        Obra obra = new Obra();
-        obra.setTitulo("Harry Potter");
-        obra.setTipo(TipoObra.LIBRO);
-
-        when(repo.findByTituloContainingIgnoreCaseAndTipo(
-                "Harry",
-                TipoObra.LIBRO))
-                .thenReturn(List.of(obra));
-
-        List<Obra> resultado =
-                service.buscar(
-                        "Harry",
-                        TipoObra.LIBRO);
-
-        assertEquals(1, resultado.size());
-
-        assertEquals(
-                "Harry Potter",
-                resultado.get(0).getTitulo());
-
-        assertEquals(
-                TipoObra.LIBRO,
-                resultado.get(0).getTipo());
-    }
-
-    @Test
-    void devuelveTodasLasObrasSiNoHayFiltros() {
-
-        ObraRepository repo =
-                mock(ObraRepository.class);
-
-        ObraService service =
-                new ObraService(repo);
-
-        Obra obra1 = new Obra();
-        Obra obra2 = new Obra();
-
-        when(repo.findAll())
-                .thenReturn(List.of(obra1, obra2));
-
-        List<Obra> resultado =
-                service.buscar(null, null);
-
-        assertEquals(2, resultado.size());
-    }
+		assertEquals(2, obraService.explorar().size());
+	}
 }

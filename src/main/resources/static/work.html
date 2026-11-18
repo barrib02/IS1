@@ -2,436 +2,357 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Ficha de obra</title>
-
-<style>
-body {
-	font-family: Arial, sans-serif;
-	max-width: 900px;
-	margin: auto;
-	padding: 30px;
-	background-color: #f9f9f9;
-}
-
-.tarjeta {
-	background: white;
-	border: 1px solid #ddd;
-	border-radius: 10px;
-	padding: 20px;
-	box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-	margin-bottom: 20px;
-}
-
-.seccion-usuario {
-	margin-top: 25px;
-	padding-top: 20px;
-	border-top: 1px solid #eee;
-}
-
-.grupo-campo {
-	margin-bottom: 15px;
-}
-
-label {
-	font-weight: bold;
-	display: block;
-	margin-bottom: 5px;
-	color: #333;
-}
-
-select, input, textarea {
-	width: 100%;
-	padding: 8px;
-	box-sizing: border-box;
-	border: 1px solid #ccc;
-	border-radius: 4px;
-	font-size: 14px;
-}
-
-textarea {
-	resize: vertical;
-	height: 80px;
-}
-
-button {
-	background-color: #28a745;
-	color: white;
-	border: none;
-	padding: 10px 15px;
-	border-radius: 4px;
-	cursor: pointer;
-	font-size: 14px;
-}
-
-button:hover {
-	background-color: #218838;
-}
-
-.alerta-error {
-	color: #d9534f;
-	text-align: center;
-}
-</style>
-
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ficha de obra - Shelfie</title>
+<link rel="icon" href="/images/logo.svg">
+<link rel="stylesheet" href="/css/shelfie.css">
+<script src="/js/shelfie.js"></script>
 </head>
-
 <body>
 
+<div id="navbar"></div>
+
+<main class="contenedor">
+	<!-- Aquí se pinta la ficha (título, creador, tipo, géneros, descripción, mi experiencia) -->
 	<div id="contenido"></div>
 
-	<div id="acciones" class="tarjeta" style="margin-top: 20px"></div>
+	<!-- Favoritos y listas (solo con sesión) -->
+	<section id="acciones" class="tarjeta" hidden></section>
+</main>
 
-	<script>
-// 1. Obtener el ID de la obra desde la URL
-const urlParams = new URLSearchParams(window.location.search);
-const id = urlParams.get('id');
+<script>
+const $ = id => document.getElementById(id);
+const obraId = Number(new URLSearchParams(window.location.search).get("id"));
+const JSON_HEADERS = { "Content-Type": "application/json" };
 
-// ID del usuario autenticado
-let usuarioId = null;
+let usuarioId = null;      // id del usuario con sesión
+let valoracionId = null;   // id de mi valoración (si ya existe) para hacer PUT en vez de POST
+let resenaId = null;       // id de mi reseña (si ya existe)
+let estrellas = null;      // control de estrellas
 
-async function cargarTodo() {
-    if (!id) {
-        document.getElementById("contenido").innerHTML = `
-            <div class="tarjeta alerta-error">
-                <h3>Atención</h3>
-                <p>No se ha especificado ninguna obra en la URL.</p>
-                <p>Prueba a entrar escribiendo: <code>http://localhost:8080/work.html?id=1</code></p>
-            </div>`;
-        return;
-    }
-
-    const obraEncontrada = await cargarObra();
-
-    if (obraEncontrada) {
-
-        // Obtener el usuario autenticado.
-        const respuestaPerfil = await fetch("/api/perfil", {
-            credentials: "same-origin"
-        });
-
-        if (!respuestaPerfil.ok) {
-            console.log("Es necesario iniciar sesión para interactuar con la obra.");
-            return;
-        }
-
-        const perfil = await respuestaPerfil.json();
-
-        // Utilizar el ID real del usuario.
-        usuarioId = perfil.id;
-
-        await cargarInteraccionesUsuario();
-    }
+// Crea un elemento con texto seguro (sin innerHTML).
+function crear(etiqueta, texto, clase) {
+	const el = document.createElement(etiqueta);
+	if (texto !== undefined) { el.textContent = texto; }
+	if (clase) { el.className = clase; }
+	return el;
 }
 
-async function cargarObra() {
-    try {
-        // Usamos ruta relativa limpia
-        const respuesta = await fetch("/work/" + id);
-        
-        if (!respuesta.ok) {
-            document.getElementById("contenido").innerHTML = `
-                <div class="tarjeta alerta-error">
-                    <h2>Obra no encontrada</h2>
-                    <p>No existe ninguna obra con el ID <b>${id}</b> en la base de datos.</p>
-                </div>`;
-            return false;
-        }
-
-        const obra = await respuesta.json();
-
-        document.getElementById("contenido").innerHTML = `
-            <div class="tarjeta">
-                <h1>${obra.titulo}</h1>
-                <p>
-                <b>Creador:</b>
-                ${
-   					obra.creador
-                    ? `<a href="creador.html?id=${obra.creador.id}">
-                            ${obra.creador.nombre}
-                       </a>`
-                    : obra.autor
-                }</p>                
-            	<p><b>Tipo:</b> ${obra.tipo}</p>
-                <p>${obra.descripcion}</p>
-
-                <div class="seccion-usuario">
-                    <h3>Mi Experiencia</h3>
-                    
-                    <div class="grupo-campo">
-                        <label for="select-estado">Estado:</label>
-                        <select id="select-estado" onchange="guardarEstado()">
-                            <option value="">Selecciona un estado...</option>
-                            <option value="PENDIENTE">Pendiente</option>
-                            <option value="EN_CURSO">En curso</option>
-                            <option value="COMPLETADA">Completada</option>
-                            <option value="ABANDONADA">Abandonada</option>
-                        </select>
-                    </div>
-
-                    <div class="grupo-campo">
-                        <label for="input-valoracion">Valoración (1 al 5):</label>
-                        <input type="number" id="input-valoracion" min="1" max="5" placeholder="Ej: 4">
-                    </div>
-
-                    <div class="grupo-campo">
-                        <label for="textarea-resena">Reseña:</label>
-                        <textarea id="textarea-resena" placeholder="Escribe tu opinión sobre la obra..."></textarea>
-                    </div>
-
-                    <button onclick="guardarValoracionYResena()">Guardar Valoración y Reseña</button>
-                </div>
-            </div>
-        `;
-        return true;
-    } catch (error) {
-        console.error("Error al cargar la obra:", error);
-        document.getElementById("contenido").innerHTML = `
-            <div class="tarjeta alerta-error">
-                <h3>Error de conexión</h3>
-                <p>No se ha podido conectar con el servidor backend.</p>
-            </div>`;
-        return false;
-    }
+// Mensaje bajo el formulario de "Mi experiencia".
+function mostrar(texto, correcto, id) {
+	const msg = $(id || "msg");
+	msg.textContent = texto;
+	msg.className = "msg " + (correcto ? "ok" : "error");
 }
 
-async function cargarInteraccionesUsuario() {
-    try {
-        const resEstado = await fetch(`/users/${usuarioId}/works/${id}/estado`);
-        if (resEstado.ok) {
-            const estado = await resEstado.json();
-            if (estado) document.getElementById("select-estado").value = estado;
-        }
-    } catch (e) { console.log("Sin estado previo"); }
+// Si el servidor devolvió un texto de error lo usamos; si no, uno genérico.
+function textoError(r, defecto) {
+	return typeof r.datos === "string" && r.datos ? r.datos : defecto;
+}
 
-    try {
-        const resVal = await fetch(`/api/valoraciones/obra/${id}/usuario/${usuarioId}`);
-        if (resVal.ok) {
-            const val = await resVal.json();
-            if (val && val.puntuacion) {
-                document.getElementById("input-valoracion").value = val.puntuacion;
-            }
-        }
-    } catch (e) { console.log("Sin valoración previa"); }
+// ======================================================
+// 1) Arranque: la obra y el perfil se piden A LA VEZ
+// ======================================================
+async function iniciar() {
+	if (!Number.isInteger(obraId) || obraId < 1) {
+		$("contenido").innerHTML = '<div class="tarjeta"><h2>Falta la obra</h2><p>Entra desde el buscador o con <code>/work.html?id=1</code>.</p></div>';
+		return;
+	}
 
-    try {
-        const resRes = await fetch(`/api/resenas/obra/${id}/usuario/${usuarioId}`);
-        if (resRes.ok) {
-            const resena = await resRes.json();
-            if (resena && resena.texto) {
-                document.getElementById("textarea-resena").value = resena.texto;
-            }
-        }
-    } catch (e) { console.log("Sin reseña previa"); }
+	const [respuestaObra, perfil] = await Promise.all([
+		Shelfie.api("/work/" + obraId),
+		Shelfie.obtenerPerfil()          // la navbar reutiliza esta misma petición
+	]);
+
+	if (!respuestaObra.ok) {
+		$("contenido").innerHTML = '<div class="tarjeta"><h2>Obra no encontrada</h2><p>No existe ninguna obra con el ID ' +
+			Shelfie.esc(obraId) + '. <a href="/search.html">Volver al buscador</a></p></div>';
+		return;
+	}
+
+	pintarObra(respuestaObra.datos);
+
+	// Sin sesión la ficha es pública, pero no se puede interactuar.
+	if (!perfil) {
+		$("experiencia").innerHTML = '<p>Inicia sesión para valorar, reseñar y guardar esta obra. ' +
+			'<a href="/login.html">Iniciar sesión</a></p>';
+		return;
+	}
+
+	usuarioId = perfil.id;
+	prepararExperiencia();
+
+	// Estado, valoración, reseña, favoritos y listas: 5 peticiones en paralelo.
+	await Promise.all([cargarInteracciones(), pintarAcciones()]);
+}
+
+// ======================================================
+// 2) Ficha de la obra
+// ======================================================
+function pintarObra(obra) {
+	document.title = obra.titulo + " - Shelfie";
+
+	const creador = obra.creador
+		? `<a href="/creador.html?id=${obra.creador.id}">${Shelfie.esc(obra.creador.nombre)}</a>`
+		: Shelfie.esc(obra.autor || "Desconocido");
+
+	// Géneros como etiquetas (el backend ya los envía en obra.generos).
+	const generos = (obra.generos && obra.generos.length)
+		? obra.generos.map(g => `<span class="chip genero">${Shelfie.esc(Shelfie.formatearEnum(g))}</span>`).join("")
+		: '<span class="vacio">Sin géneros indicados</span>';
+
+	$("contenido").innerHTML = `
+		<article class="tarjeta">
+			<div class="titulo-fila">
+				<h1>${Shelfie.esc(obra.titulo)}</h1>
+				<span id="zona-fav"></span>
+			</div>
+			<p><b>Creador:</b> ${creador}</p>
+			<p><b>Tipo:</b> ${Shelfie.esc(Shelfie.formatearEnum(obra.tipo))}
+				${obra.anio ? " · <b>Año:</b> " + Shelfie.esc(obra.anio) : ""}</p>
+			<div><b>Géneros:</b><div style="margin-top:6px">${generos}</div></div>
+			<p>${Shelfie.esc(obra.descripcion || "")}</p>
+
+			<section id="experiencia" style="margin-top:24px;padding-top:20px;border-top:1px solid var(--borde)">
+				<h3>Mi experiencia</h3>
+
+				<div class="grupo">
+					<label for="estado">Estado</label>
+					<select id="estado">
+						<option value="">Selecciona un estado…</option>
+						<option value="PENDIENTE">Pendiente</option>
+						<option value="EN_CURSO">En curso</option>
+						<option value="COMPLETADA">Completada</option>
+						<option value="ABANDONADA">Abandonada</option>
+					</select>
+				</div>
+
+				<div class="grupo">
+					<span class="etiqueta">Mi valoración</span>
+					<div id="estrellas"></div>
+				</div>
+
+				<div class="grupo">
+					<label for="resena">Reseña</label>
+					<textarea id="resena" placeholder="Escribe tu opinión sobre la obra…"></textarea>
+					<small id="contador">0 / 200 palabras</small>
+				</div>
+
+				<button type="button" class="btn" id="guardar">Guardar valoración y reseña</button>
+				<p id="msg" class="msg" role="status"></p>
+			</section>
+		</article>`;
+}
+
+// Conecta los controles de "Mi experiencia".
+function prepararExperiencia() {
+	estrellas = Shelfie.estrellas($("estrellas"), {});
+
+	$("estado").addEventListener("change", guardarEstado);
+	$("guardar").addEventListener("click", guardarValoracionYResena);
+	$("resena").addEventListener("input", contarPalabras);
+}
+
+function contarPalabras() {
+	const texto = $("resena").value.trim();
+	const palabras = texto === "" ? 0 : texto.split(/\s+/).length;
+	$("contador").textContent = palabras + " / 200 palabras";
+	$("contador").style.color = palabras > 200 ? "var(--error)" : "inherit";
+	return palabras;
+}
+
+// ======================================================
+// 3) Cargar y guardar mi estado, valoración y reseña
+// ======================================================
+async function cargarInteracciones() {
+	const [est, val, res] = await Promise.all([
+		Shelfie.api(`/users/${usuarioId}/works/${obraId}/estado`),
+		Shelfie.api(`/api/valoraciones/obra/${obraId}/usuario/${usuarioId}`),
+		Shelfie.api(`/api/resenas/obra/${obraId}/usuario/${usuarioId}`)
+	]);
+
+	if (est.ok && est.datos) { $("estado").value = est.datos; }
+
+	if (val.ok && val.datos) {
+		valoracionId = val.datos.id;
+		estrellas.set(val.datos.puntuacion);
+	}
+
+	if (res.ok && res.datos) {
+		resenaId = res.datos.id;
+		$("resena").value = res.datos.texto;
+		contarPalabras();
+	}
 }
 
 async function guardarEstado() {
-    const nuevoEstado = document.getElementById("select-estado").value;
-    try {
-        const res = await fetch(`/users/${usuarioId}/works/${id}/estado?estado=${nuevoEstado}`, {
-            method: 'PUT'
-        });
-        if (res.ok) {
-            console.log("Estado actualizado con éxito");
-        }
-    } catch (e) {
-        console.error("Error al actualizar estado:", e);
-    }
+	const estado = $("estado").value;
+	if (!estado) { return; }   // evita llamar al backend con un estado vacío
+
+	const r = await Shelfie.api(`/users/${usuarioId}/works/${obraId}/estado?estado=${encodeURIComponent(estado)}`,
+		{ method: "PUT" });
+
+	r.ok ? mostrar("Estado actualizado.", true) : mostrar("No se ha podido cambiar el estado.", false);
 }
 
 async function guardarValoracionYResena() {
-    const puntuacion = document.getElementById("input-valoracion").value;
-    const textoResena = document.getElementById("textarea-resena").value;
+	const puntuacion = estrellas.get();
+	const texto = $("resena").value.trim();
 
-    let exito = true;
+	if (contarPalabras() > 200) {
+		mostrar("La reseña no puede superar las 200 palabras.", false);
+		return;
+	}
 
-    if (puntuacion) {
-        const resVal = await fetch(`/api/valoraciones`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ usuarioId: usuarioId, obraId: parseInt(id), puntuacion: parseInt(puntuacion) })
-        });
-        if (!resVal.ok) exito = false;
-    }
+	$("guardar").disabled = true;
 
-    if (textoResena) {
-        const resRes = await fetch(`/api/resenas`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ usuarioId: usuarioId, obraId: parseInt(id), texto: textoResena })
-        });
-        if (!resRes.ok) exito = false;
-    }
+	try {
+		// Valoración: POST si es nueva, PUT si ya existía (así no se duplica).
+		if (puntuacion > 0 || valoracionId !== null) {
+			const r = valoracionId === null
+				? await Shelfie.api("/api/valoraciones", {
+					method: "POST", headers: JSON_HEADERS,
+					body: JSON.stringify({ usuarioId, obraId, puntuacion })
+				})
+				: await Shelfie.api("/api/valoraciones/" + valoracionId, {
+					method: "PUT", headers: JSON_HEADERS,
+					body: JSON.stringify({ puntuacion })
+				});
 
-    if (exito) {
-        alert("¡Valoración y reseña guardadas correctamente!");
-    } else {
-        alert("Hubo algún error al guardar los datos.");
-    }
+			if (!r.ok) { throw new Error(textoError(r, "No se han podido guardar las estrellas.")); }
+			valoracionId = r.datos.id;
+		}
+
+		// Reseña: igual, POST si es nueva y PUT si ya existía.
+		if (texto) {
+			const r = resenaId === null
+				? await Shelfie.api("/api/resenas", {
+					method: "POST", headers: JSON_HEADERS,
+					body: JSON.stringify({ usuarioId, obraId, valoracionId, texto })
+				})
+				: await Shelfie.api("/api/resenas/" + resenaId, {
+					method: "PUT", headers: JSON_HEADERS,
+					body: JSON.stringify({ texto })
+				});
+
+			if (!r.ok) { throw new Error(textoError(r, "Las estrellas se guardaron, pero la reseña no.")); }
+			resenaId = r.datos.id;
+		}
+
+		mostrar("Guardado correctamente.", true);
+	} catch (error) {
+		mostrar(error.message, false);
+	} finally {
+		$("guardar").disabled = false;
+	}
 }
 
-cargarTodo();
-</script>
+// ======================================================
+// 4) Favoritos y listas
+// ======================================================
+async function pintarAcciones() {
+	const [fav, listas] = await Promise.all([
+		Shelfie.api("/api/favoritos"),
+		Shelfie.api("/api/listas/obra/" + obraId)
+	]);
 
-	<script>
-(function () {
+	const caja = $("acciones");
+	caja.hidden = false;
+	caja.innerHTML = "";
 
-    const obraId = Number(
-        new URLSearchParams(window.location.search).get("id"));
+	const mensaje = crear("p", "", "msg");
+	mensaje.setAttribute("role", "status");
 
-    const caja = document.getElementById("acciones");
+	function aviso(texto, correcto) {
+		mensaje.textContent = texto;
+		mensaje.className = "msg " + (correcto ? "ok" : "error");
+	}
 
-    // Llama a la API y devuelve estado y datos, sin redirigir.
-    async function llamar(url, opciones) {
-        const respuesta = await fetch(
-            url,
-            Object.assign({ credentials: "same-origin" }, opciones));
+	// ----- Favorito: corazón junto al título -----
+	let esFavorita = Array.isArray(fav.datos) && fav.datos.some(f => f.obraId === obraId);
 
-        const texto = await respuesta.text();
-        let datos = null;
+	const botonFav = document.createElement("button");
+	botonFav.type = "button";
+	botonFav.className = "btn-icono";
+	botonFav.innerHTML =
+		'<svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+		'<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>';
 
-        if (texto) {
-            try {
-                datos = JSON.parse(texto);
-            } catch (e) {
-                datos = texto;
-            }
-        }
+	// Cambia color/relleno y el texto accesible según el estado.
+	function pintarFav() {
+		botonFav.classList.toggle("activo", esFavorita);
+		botonFav.setAttribute("aria-pressed", String(esFavorita));
+		const texto = esFavorita ? "Quitar de favoritos" : "Fijar como favorita";
+		botonFav.title = texto;
+		botonFav.setAttribute("aria-label", texto);
+	}
+	pintarFav();
 
-        return { ok: respuesta.ok, status: respuesta.status, datos: datos };
-    }
+	botonFav.addEventListener("click", async () => {
+		const r = await Shelfie.api("/api/favoritos/" + obraId, { method: esFavorita ? "DELETE" : "POST" });
+		if (r.ok) {
+			esFavorita = !esFavorita;
+			pintarFav();
+			aviso(esFavorita ? "Obra fijada como favorita." : "Obra quitada de favoritos.", true);
+		} else {
+			aviso(textoError(r, "No se ha podido completar la acción."), false);
+		}
+	});
+	$("zona-fav").appendChild(botonFav);
 
-    function crear(etiqueta, texto) {
-        const el = document.createElement(etiqueta);
-        if (texto !== undefined) {
-            el.textContent = texto;
-        }
-        return el;
-    }
+	// ----- Listas: botón "+" que pasa a "✓" verde -----
+	caja.appendChild(crear("h3", "Guardar en mis listas"));
 
-    async function iniciar() {
+	if (!listas.ok || !Array.isArray(listas.datos) || listas.datos.length === 0) {
+		const vacio = crear("p", "Todavía no tienes listas. ", "vacio");
+		const enlace = crear("a", "Créalas en tu perfil");
+		enlace.href = "/perfil.html";
+		vacio.appendChild(enlace);
+		caja.appendChild(vacio);
+	} else {
+		listas.datos.forEach(lista => {
+			let dentro = lista.contieneObra;
 
-        if (!Number.isInteger(obraId) || obraId < 1) {
-            return;
-        }
+			const fila = crear("div", undefined, "lista-fila");
+			fila.appendChild(crear("span", lista.nombre));
 
-        const favoritos = await llamar("/api/favoritos");
+			const boton = crear("button", "", "btn-mas");
+			boton.type = "button";
 
-        // Sin sesión: la ficha sigue siendo pública, pero avisamos.
-        if (favoritos.status === 401 || favoritos.status === 403) {
-            const aviso = crear("p", "Inicia sesión para fijar esta obra "
-                + "como favorita o añadirla a tus listas. ");
-            const enlace = crear("a", "Iniciar sesión");
-            enlace.href = "login.html";
-            aviso.appendChild(enlace);
-            caja.appendChild(aviso);
-            return;
-        }
+			function pintarBoton() {
+				boton.textContent = dentro ? "✓" : "+";
+				boton.classList.toggle("activo", dentro);
+				boton.setAttribute("aria-pressed", String(dentro));
+				boton.setAttribute("aria-label", (dentro ? "Quitar de " : "Añadir a ") + lista.nombre);
+			}
+			pintarBoton();
 
-        const mensaje = crear("p");
-        mensaje.style.fontWeight = "bold";
+			// Cada clic se guarda al momento (sin botón Guardar).
+			boton.addEventListener("click", async () => {
+				boton.disabled = true;
+				const r = await Shelfie.api("/api/listas/" + lista.id + "/obras/" + obraId,
+					{ method: dentro ? "DELETE" : "POST" });
+				boton.disabled = false;
 
-        function mostrar(texto, correcto) {
-            mensaje.textContent = texto;
-            mensaje.style.color = correcto ? "green" : "red";
-        }
+				if (r.ok) {
+					dentro = !dentro;
+					pintarBoton();
+					aviso(dentro ? `Añadida a "${lista.nombre}".` : `Quitada de "${lista.nombre}".`, true);
+				} else {
+					aviso(textoError(r, "No se ha podido guardar el cambio."), false);
+				}
+			});
 
-        // ----- Favorito -----
+			fila.appendChild(boton);
+			caja.appendChild(fila);
+		});
+	}
 
-        let esFavorita = Array.isArray(favoritos.datos)
-            && favoritos.datos.some(f => f.obraId === obraId);
+	caja.appendChild(mensaje);
+}
 
-        const botonFav = crear("button");
-        botonFav.type = "button";
-        botonFav.style.cursor = "pointer";
 
-        function textoBotonFav() {
-            botonFav.textContent = esFavorita
-                ? "⭐ Quitar de favoritos"
-                : "☆ Fijar como favorita";
-        }
-
-        textoBotonFav();
-
-        botonFav.addEventListener("click", async function () {
-            const resultado = await llamar("/api/favoritos/" + obraId,
-                { method: esFavorita ? "DELETE" : "POST" });
-
-            if (resultado.ok) {
-                esFavorita = !esFavorita;
-                textoBotonFav();
-                mostrar(esFavorita
-                    ? "Obra fijada como favorita."
-                    : "Obra quitada de favoritos.", true);
-            } else {
-                mostrar(typeof resultado.datos === "string"
-                    ? resultado.datos
-                    : "No se ha podido completar la acción.", false);
-            }
-        });
-
-        caja.appendChild(botonFav);
-
-        // ----- Listas -----
-
-        caja.appendChild(crear("h3", "Añadir a mis listas"));
-
-        const listas = await llamar("/api/listas/obra/" + obraId);
-
-        if (!listas.ok || !Array.isArray(listas.datos)
-                || listas.datos.length === 0) {
-
-            const vacio = crear("p", "Todavía no tienes listas. ");
-            const enlace = crear("a", "Créalas en tu perfil");
-            enlace.href = "perfil.html";
-            vacio.appendChild(enlace);
-            caja.appendChild(vacio);
-
-        } else {
-            listas.datos.forEach(lista => {
-                const etiqueta = crear("label");
-                etiqueta.style.display = "block";
-                etiqueta.style.margin = "6px 0";
-
-                const casilla = document.createElement("input");
-                casilla.type = "checkbox";
-                casilla.checked = lista.contieneObra;
-
-                // Cada clic se guarda al momento (sin botón Guardar).
-                casilla.addEventListener("change", async function () {
-                    const resultado = await llamar(
-                        "/api/listas/" + lista.id + "/obras/" + obraId,
-                        { method: casilla.checked ? "POST" : "DELETE" });
-
-                    if (resultado.ok) {
-                        mostrar(casilla.checked
-                            ? "Añadida a \"" + lista.nombre + "\"."
-                            : "Quitada de \"" + lista.nombre + "\".", true);
-                    } else {
-                        // Si falla, devolvemos la casilla a su estado.
-                        casilla.checked = !casilla.checked;
-                        mostrar(typeof resultado.datos === "string"
-                            ? resultado.datos
-                            : "No se ha podido guardar el cambio.", false);
-                    }
-                });
-
-                etiqueta.appendChild(casilla);
-                etiqueta.appendChild(
-                    document.createTextNode(" " + lista.nombre));
-                caja.appendChild(etiqueta);
-            });
-        }
-
-        caja.appendChild(mensaje);
-
-        const enlacePerfil = crear("a", "Ir a mi perfil");
-        enlacePerfil.href = "perfil.html";
-        caja.appendChild(enlacePerfil);
-    }
-
-    iniciar();
-
-})();
+iniciar();
 </script>
 
 </body>

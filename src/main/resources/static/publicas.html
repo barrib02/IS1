@@ -2,61 +2,43 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Listas Públicas</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Listas públicas - Shelfie</title>
+<link rel="icon" href="/images/logo.svg">
+<link rel="stylesheet" href="/css/shelfie.css">
+<script src="/js/shelfie.js"></script>
 </head>
 <body>
+<div id="navbar"></div>
 
-<h1>Listas Públicas</h1>
-
-<div id="listas"></div>
+<main class="contenedor">
+	<h1>Listas públicas</h1>
+	<div id="listas" class="rejilla"></div>
+</main>
 
 <script>
+async function cargar() {
+	const r = await Shelfie.api("/api/listas/publicas");
+	const caja = document.getElementById("listas");
 
-async function cargar(){
+	if (!r.ok || !Array.isArray(r.datos)) {
+		caja.innerHTML = '<p class="vacio">No se han podido cargar las listas. ¿Has iniciado sesión?</p>';
+		return;
+	}
+	if (r.datos.length === 0) {
+		caja.innerHTML = '<p class="vacio">Todavía no hay listas públicas.</p>';
+		return;
+	}
 
-    const respuesta =
-        await fetch("/api/listas/publicas");
-
-    const listas =
-        await respuesta.json();
-
-    let html = "";
-
-    listas.forEach(lista => {
-
-		html += `
-		<div>
-
-		    <h3>
-		        <a href="lista.html?id=${lista.id}">
-		            ${lista.nombre}
-		        </a>
-		    </h3>
-
-		    <p>
-		        <b>Creador:</b>
-		        ${lista.creador}
-		    </p>
-
-		    <p>
-		        ${lista.descripcion ?? ""}
-		    </p>
-
-		</div>
-
-		<hr>
-		`;
-
-    });
-
-    document.getElementById("listas")
-        .innerHTML = html;
-
+	// Cada lista es una tarjeta; Shelfie.esc evita inyección de HTML.
+	caja.innerHTML = r.datos.map(l => `
+		<article class="tarjeta-obra">
+			<h3><a href="/lista.html?id=${l.id}">${Shelfie.esc(l.nombre)}</a></h3>
+			<p>Creada por ${Shelfie.esc(l.creador)}</p>
+			<p>${Shelfie.esc(l.descripcion || "")}</p>
+		</article>`).join("");
 }
-
 cargar();
-
 </script>
-
 </body>
 </html>

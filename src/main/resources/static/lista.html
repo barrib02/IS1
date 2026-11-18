@@ -2,293 +2,178 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Lista - Shelfie</title>
-
+<link rel="icon" href="/images/logo.svg">
+<link rel="stylesheet" href="/css/shelfie.css">
+<script src="/js/shelfie.js"></script>
 <style>
-    body {
-        font-family: Arial, sans-serif;
-        background-color: #f5f3ef;
-        color: #382110;
-        margin: 0;
-        padding: 20px;
-    }
-
-    .pagina { max-width: 900px; margin: auto; }
-
-    .tarjeta {
-        background: white;
-        border-radius: 10px;
-        padding: 20px;
-        margin-bottom: 20px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    }
-
-    h1 { margin-top: 0; }
-
-    button {
-        padding: 8px 12px;
-        border: none;
-        border-radius: 5px;
-        background-color: #c0392b;
-        color: white;
-        cursor: pointer;
-    }
-
-    button:hover { background-color: #962d22; }
-
-    .obra {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 8px;
-        padding: 10px;
-        margin-bottom: 8px;
-        border: 1px solid #e3ddd3;
-        border-left: 5px solid #409d69;
-        border-radius: 6px;
-        background: #fbfaf7;
-    }
-
-    .obra .titulo { flex: 1; min-width: 150px; font-weight: bold; }
-    .obra a { color: #382110; text-decoration: none; }
-    .obra a:hover { text-decoration: underline; }
-
-    .etiqueta {
-        font-size: 12px;
-        padding: 2px 8px;
-        border-radius: 10px;
-        background: #e3ddd3;
-    }
-
-    .etiqueta.publica { background: #cfe9d9; }
-    .vacio { color: #8a7a6b; font-style: italic; }
-
-    #mensaje { min-height: 22px; font-weight: bold; }
-    #mensaje.ok { color: green; }
-    #mensaje.error { color: red; }
+	.acciones-lista { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+	.btn-sec.oscuro { color: var(--tinta); }
+	.btn-sec.oscuro:hover { background: var(--fondo); }
+	.lista-fila .titulo { flex: 1; min-width: 150px; font-weight: bold; }
+	.lista-fila a { text-decoration: none; }
+	.lista-fila a:hover { text-decoration: underline; }
+	.btn-peq { padding: 6px 12px; font-size: 0.85rem; }
 </style>
 </head>
-
 <body>
-<div class="pagina">
 
-    <p><a href="perfil.html">← Volver a mi perfil</a></p>
+<div id="navbar"></div>
 
-    <p id="mensaje" role="status" aria-live="polite"></p>
+<main class="contenedor">
 
-    <section class="tarjeta">
-        <h1 id="nombreLista">Lista</h1>
-		
+	<p><a href="/perfil.html">← Volver a mi perfil</a></p>
+
+	<p id="mensaje" class="msg" role="status" aria-live="polite"></p>
+
+	<section class="tarjeta">
+		<h1 id="nombreLista">Lista</h1>
 		<p id="creadorLista"></p>
-
 		<p id="descripcionLista"></p>
-		
-		<button id="copiarEnlace">
-		Copiar enlace
-		</button>
-		
-		<button id="compartir">
-		    Compartir
-		</button>
-		
-        <p>
-            <span id="visibilidad" class="etiqueta"></span>
-            <span id="contador"></span>
-        </p>
-        <div id="obras"></div>
-    </section>
 
-</div>
+		<div class="acciones-lista">
+			<button type="button" class="btn btn-sec oscuro" id="copiarEnlace">Copiar enlace</button>
+			<button type="button" class="btn" id="compartir">Compartir</button>
+		</div>
+
+		<p>
+			<span id="visibilidad" class="chip"></span>
+			<span id="contador"></span>
+		</p>
+
+		<div id="obras"></div>
+	</section>
+
+</main>
 
 <script>
-    const listaId = new URLSearchParams(window.location.search).get("id");
-		let modo = "obras";
+const $ = id => document.getElementById(id);
+const listaId = new URLSearchParams(window.location.search).get("id");
+let lista = null;
 
-    let lista = null;
+// Llama a la API. Sin sesión redirige al login; si hay error lanza su mensaje.
+async function api(url, opciones) {
+	const r = await Shelfie.api(url, opciones);
 
-    // Llama a la API. Sin sesión redirige al login;
-    // si el servidor devuelve un error, lanza su mensaje.
-    async function api(url, opciones) {
-        const respuesta = await fetch(
-            url,
-            Object.assign({ credentials: "same-origin" }, opciones));
+	if (r.status === 401 || r.status === 403) {
+		window.location.href = "/login.html";
+		throw new Error("Debes iniciar sesión.");
+	}
+	if (!r.ok) {
+		throw new Error(typeof r.datos === "string" && r.datos ? r.datos : "Error " + r.status);
+	}
+	return r.datos;
+}
 
-        if (respuesta.status === 401 || respuesta.status === 403) {
-            window.location.href = "login.html";
-            throw new Error("Debes iniciar sesión.");
-        }
+function mostrar(texto, correcto) {
+	$("mensaje").textContent = texto;
+	$("mensaje").className = "msg " + (correcto ? "ok" : "error");
+}
 
-        const texto = await respuesta.text();
-        let datos = null;
+function crear(etiqueta, texto, clase) {
+	const el = document.createElement(etiqueta);
+	if (texto !== undefined) { el.textContent = texto; }
+	if (clase) { el.className = clase; }
+	return el;
+}
 
-        if (texto) {
-            try {
-                datos = JSON.parse(texto);
-            } catch (e) {
-                datos = texto;
-            }
-        }
+function pintar() {
+	$("nombreLista").textContent = lista.nombre;
+	$("creadorLista").textContent = "Creador: " + lista.creador;
+	$("descripcionLista").textContent = lista.descripcion || "";
+	document.title = lista.nombre + " - Shelfie";
 
-        if (!respuesta.ok) {
-            throw new Error(typeof datos === "string"
-                ? datos
-                : "Error " + respuesta.status);
-        }
+	$("visibilidad").textContent = lista.publica ? "Pública" : "Privada";
+	$("visibilidad").className = lista.publica ? "chip genero" : "chip";
 
-        return datos;
-    }
+	const n = lista.obras.length;
+	$("contador").textContent = " " + n + (n === 1 ? " obra" : " obras");
 
-    function mostrar(texto, correcto) {
-        const mensaje = document.getElementById("mensaje");
-        mensaje.textContent = texto;
-        mensaje.className = correcto ? "ok" : "error";
-    }
+	const contenedor = $("obras");
+	contenedor.innerHTML = "";
 
-    function crear(etiqueta, texto, clase) {
-        const el = document.createElement(etiqueta);
-        if (texto !== undefined) {
-            el.textContent = texto;
-        }
-        if (clase) {
-            el.className = clase;
-        }
-        return el;
-    }
+	if (n === 0) {
+		contenedor.appendChild(crear("p", "Esta lista todavía no tiene obras.", "vacio"));
+		return;
+	}
 
-    function pintar() {
-        document.getElementById("nombreLista").textContent = lista.nombre;
-		
-		document
-		.getElementById("creadorLista")
-		.textContent =
-		"Creador: " + lista.creador;
+	lista.obras.forEach(obra => {
+		const fila = crear("div", undefined, "lista-fila");
 
-		document
-		.getElementById("descripcionLista")
-		.textContent =
-		lista.descripcion || "";
-		
-        document.title = lista.nombre + " - Shelfie";
+		const titulo = crear("span", undefined, "titulo");
+		const enlace = crear("a", obra.titulo);
+		enlace.href = "/work.html?id=" + obra.id;
+		titulo.appendChild(enlace);
+		fila.appendChild(titulo);
 
-        const visibilidad = document.getElementById("visibilidad");
-        visibilidad.textContent = lista.publica ? "Pública" : "Privada";
-        visibilidad.className =
-            lista.publica ? "etiqueta publica" : "etiqueta";
+		fila.appendChild(crear("span", Shelfie.formatearEnum(obra.tipo), "chip"));
 
-        const n = lista.obras.length;
-        document.getElementById("contador").textContent =
-            " " + n + (n === 1 ? " obra" : " obras");
+		// Solo el dueño puede quitar obras.
+		if (lista.mia) {
+			const quitar = crear("button", "Quitar", "btn btn-peligro btn-peq");
+			quitar.type = "button";
+			quitar.addEventListener("click", () => quitarObra(obra));
+			fila.appendChild(quitar);
+		}
 
-        const contenedor = document.getElementById("obras");
-        contenedor.innerHTML = "";
-
-        if (n === 0) {
-            contenedor.appendChild(crear("p",
-                "Esta lista todavía no tiene obras.", "vacio"));
-            return;
-        }
-
-        lista.obras.forEach(obra => {
-            const fila = crear("div", undefined, "obra");
-
-            const titulo = crear("span", undefined, "titulo");
-            const enlace = crear("a", obra.titulo);
-            enlace.href = "work.html?id=" + obra.id;
-            titulo.appendChild(enlace);
-            fila.appendChild(titulo);
-
-            fila.appendChild(crear("span", obra.tipo, "etiqueta"));
-
-            // Solo el dueño puede quitar obras.
-            if (lista.mia) {
-                const quitar = crear("button", "Quitar");
-                quitar.type = "button";
-                quitar.addEventListener("click", () => quitarObra(obra));
-                fila.appendChild(quitar);
-            }
-
-            contenedor.appendChild(fila);
-        });
-    }
-
-    async function quitarObra(obra) {
-        if (!confirm("¿Quitar \"" + obra.titulo + "\" de la lista?")) {
-            return;
-        }
-
-        try {
-            await api("/api/listas/" + listaId + "/obras/" + obra.id,
-                { method: "DELETE" });
-            await cargar();
-            mostrar("Obra eliminada de la lista.", true);
-        } catch (error) {
-            mostrar(error.message, false);
-        }
-    }
-
-    async function cargar() {
-        lista = await api("/api/listas/" + listaId);
-        pintar();
-    }
-
-    async function iniciar() {
-        if (!listaId) {
-            mostrar("Falta el identificador de la lista.", false);
-            return;
-        }
-
-        try {
-            await cargar();
-        } catch (error) {
-            mostrar(error.message, false);
-        }
-    }
-
-    iniciar();
-	
-	document
-	.getElementById("copiarEnlace")
-	.addEventListener("click", async function(){
-
-	    await navigator.clipboard.writeText(
-	        window.location.href
-	    );
-
-	    alert(
-	        "Enlace copiado"
-	    );
-
+		contenedor.appendChild(fila);
 	});
-	
-	
-	document
-	.getElementById("compartir")
-	.addEventListener("click", async function(){
+}
 
-	    if(navigator.share){
+async function quitarObra(obra) {
+	if (!confirm("¿Quitar \"" + obra.titulo + "\" de la lista?")) { return; }
 
-	        try{
+	try {
+		await api("/api/listas/" + listaId + "/obras/" + obra.id, { method: "DELETE" });
+		await cargar();
+		mostrar("Obra eliminada de la lista.", true);
+	} catch (error) {
+		mostrar(error.message, false);
+	}
+}
 
-	            await navigator.share({
-	                title: lista.nombre,
-	                text: "Mira esta lista de Shelfie",
-	                url: window.location.href
-	            });
+async function cargar() {
+	lista = await api("/api/listas/" + listaId);
+	pintar();
+}
 
-	        }catch(e){}
+async function iniciar() {
+	if (!listaId) {
+		mostrar("Falta el identificador de la lista.", false);
+		return;
+	}
+	try {
+		await cargar();
+	} catch (error) {
+		mostrar(error.message, false);
+	}
+}
 
-	    }else{
+$("copiarEnlace").addEventListener("click", async function () {
+	try {
+		await navigator.clipboard.writeText(window.location.href);
+		mostrar("Enlace copiado.", true);
+	} catch (e) {
+		mostrar("No se ha podido copiar el enlace.", false);
+	}
+});
 
-	        alert(
-	            "Tu navegador no soporta compartir."
-	        );
+$("compartir").addEventListener("click", async function () {
+	if (!navigator.share) {
+		mostrar("Tu navegador no permite compartir. Usa Copiar enlace.", false);
+		return;
+	}
+	try {
+		await navigator.share({
+			title: lista ? lista.nombre : "Lista de Shelfie",
+			text: "Mira esta lista de Shelfie",
+			url: window.location.href
+		});
+	} catch (e) { /* el usuario canceló */ }
+});
 
-	    }
-
-	});
-	
+iniciar();
 </script>
-
 </body>
 </html>

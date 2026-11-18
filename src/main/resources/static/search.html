@@ -2,321 +2,239 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Buscador</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Buscar - Shelfie</title>
+<link rel="icon" href="/images/logo.svg">
+<link rel="stylesheet" href="/css/shelfie.css">
+<script src="/js/shelfie.js"></script>
 </head>
 <body>
-	<button type="button" onclick="window.location.href='perfil.html'">
-		Mi perfil</button>
-	<h1>Buscar obras</h1>
 
-	<p>
+<!-- La barra superior (logo, enlaces y avatar) la pinta shelfie.js -->
+<div id="navbar"></div>
 
-	    <button id="modoObras">
-	        Obras
-	    </button>
+<main class="contenedor">
 
-	    <button id="modoListas">
-	        Listas
-	    </button>
+	<h1>Buscar</h1>
 
-	</p>
+	<!-- Cambiar entre buscar obras o listas públicas -->
+	<div class="pestanas">
+		<button type="button" class="pestana activa" id="modoObras" aria-pressed="true">Obras</button>
+		<button type="button" class="pestana" id="modoListas" aria-pressed="false">Listas</button>
+	</div>
 
-	
-	
-	<input type="text" id="titulo" placeholder="Buscar obra">
+	<div class="barra-busqueda">
+		<div class="campo-sug">
+			<input type="search" id="titulo" placeholder="Busca por título…"
+				autocomplete="off" aria-label="Texto a buscar">
+			<div id="sugerencias" class="sugerencias" hidden></div>
+		</div>
 
-	<div id="sugerencias"></div>
+		<select id="tipo" aria-label="Tipo de obra">
+			<option value="">Todos los tipos</option>
+			<option value="LIBRO">Libro</option>
+			<option value="PELICULA">Película</option>
+			<option value="SERIE">Serie</option>
+			<option value="VIDEOJUEGO">Videojuego</option>
+		</select>
 
-	<button id="buscar">Buscar</button>
+		<button type="button" id="buscar" class="btn">Buscar</button>
+	</div>
 
-	<br>
-	<br>
+	<h2 id="encabezado">Obras recientes</h2>
+	<p id="estado" class="msg" role="status"></p>
+	<div id="resultados" class="rejilla"></div>
 
-	<select id="tipo">
+</main>
 
-		<option value="">Todos</option>
+<script>
+const $ = id => document.getElementById(id);
+const enc = encodeURIComponent;
 
-		<option value="LIBRO">Libro</option>
+let modo = "obras";        // "obras" o "listas"
+let numeroPeticion = 0;    // sirve para ignorar respuestas antiguas
+let controladorSug = null; // permite cancelar la petición de sugerencias anterior
 
-		<option value="PELICULA">Película</option>
+const NOMBRE_TIPO = { LIBRO: "Libro", PELICULA: "Película", SERIE: "Serie", VIDEOJUEGO: "Videojuego" };
+const NOMBRE_PLURAL = { LIBRO: "libros", PELICULA: "películas", SERIE: "series", VIDEOJUEGO: "videojuegos" };
 
-		<option value="SERIE">Serie</option>
+// ---------- Cambio de pestaña ----------
+function cambiarModo(nuevo) {
+	modo = nuevo;
+	$("modoObras").classList.toggle("activa", nuevo === "obras");
+	$("modoListas").classList.toggle("activa", nuevo === "listas");
+	$("modoObras").setAttribute("aria-pressed", String(nuevo === "obras"));
+	$("modoListas").setAttribute("aria-pressed", String(nuevo === "listas"));
+	$("tipo").hidden = (nuevo !== "obras");   // el filtro de tipo solo vale para obras
+	$("titulo").placeholder = nuevo === "obras" ? "Busca por título…" : "Busca una lista…";
+	ocultarSugerencias();
+	ejecutar();
+}
 
-		<option value="VIDEOJUEGO">Videojuego</option>
+// ---------- Petición común ----------
+// Devuelve un array (vacío si hay error) y escribe el estado en pantalla.
+async function pedir(url) {
+	$("estado").className = "msg";
+	$("estado").textContent = "Cargando…";
 
-	</select>
+	const r = await Shelfie.api(url);
 
-	<hr>
+	if (r.status === 401 || r.status === 403) {
+		$("estado").className = "msg error";
+		$("estado").innerHTML = 'Inicia sesión para ver las listas. <a href="/login.html">Iniciar sesión</a>';
+		return [];
+	}
+	if (!r.ok || !Array.isArray(r.datos)) {
+		$("estado").className = "msg error";
+		$("estado").textContent = "No se ha podido cargar. Inténtalo de nuevo.";
+		return [];
+	}
 
-	<div id="resultados"></div>
+	$("estado").textContent = "";
+	return r.datos;
+}
 
-	<script>
+// ---------- Buscar (botón, Intro o cambio de filtro) ----------
+async function ejecutar() {
+	const texto = $("titulo").value.trim();
+	const tipo = $("tipo").value;
+	const miPeticion = ++numeroPeticion;
+	ocultarSugerencias();
 
-document.getElementById("buscar")
-.addEventListener("click", buscar);
+	let datos;
 
-document
-.getElementById("modoObras")
-.addEventListener("click", () => {
+	if (modo === "obras") {
+		if (!texto) {
+			// Sin texto: Discover con estantes (filtrado por tipo si hay uno elegido).
+			$("encabezado").textContent = tipo ? "Descubre " + NOMBRE_PLURAL[tipo] : "Descubre";
+			datos = await pedir("/explorar/estantes" + (tipo ? "?tipo=" + enc(tipo) : ""));
+			if (miPeticion === numeroPeticion) { pintarEstantes(datos); }
+		} else {
+			$("encabezado").textContent = "Resultados";
+			datos = await pedir("/search?titulo=" + enc(texto) + "&tipo=" + enc(tipo));
+			if (miPeticion === numeroPeticion) { pintarObras(datos); }
+		}
+	} else {
+		if (!texto) {
+			$("encabezado").textContent = "Listas públicas";
+			datos = await pedir("/api/listas/publicas");
+		} else {
+			$("encabezado").textContent = "Resultados";
+			datos = await pedir("/api/listas/buscar?texto=" + enc(texto));
+		}
+		if (miPeticion === numeroPeticion) { pintarListas(datos); }
+	}
+}
 
-    modo = "obras";
+// ---------- Pintar resultados ----------
+function pintarObras(obras) {
+	const caja = $("resultados");
+		caja.className = "rejilla";
+	if (obras.length === 0) {
+		caja.innerHTML = '<p class="vacio">No hay obras con esos criterios. Prueba con otro título o quita el filtro de tipo.</p>';
+		return;
+	}
+	caja.innerHTML = obras.map(o => `
+		<article class="tarjeta-obra">
+			<span class="chip">${Shelfie.esc(NOMBRE_TIPO[o.tipo] || o.tipo)}</span>
+			<h3><a href="/work.html?id=${o.id}">${Shelfie.esc(o.titulo)}</a></h3>
+		</article>`).join("");
+}
 
+function pintarListas(listas) {
+	const caja = $("resultados");
+		caja.className = "rejilla";
+	if (listas.length === 0) {
+		caja.innerHTML = '<p class="vacio">No hay listas públicas con esos criterios.</p>';
+		return;
+	}
+	caja.innerHTML = listas.map(l => `
+		<article class="tarjeta-obra">
+			<h3><a href="/lista.html?id=${l.id}">${Shelfie.esc(l.nombre)}</a></h3>
+			<p>Creada por ${Shelfie.esc(l.creador)}</p>
+			<p>${Shelfie.esc(l.descripcion || "")}</p>
+		</article>`).join("");
+}
+
+// Pinta los estantes: cada uno es una fila horizontal que se desliza.
+function pintarEstantes(estantes) {
+	const caja = $("resultados");
+	caja.className = "";   // los estantes no usan la rejilla
+
+	if (estantes.length === 0) {
+		caja.innerHTML = '<p class="vacio">Todavía no hay obras para descubrir.</p>';
+		return;
+	}
+
+	caja.innerHTML = estantes.map(e => `
+		<section class="estante">
+			<h2>${Shelfie.esc(e.titulo)}</h2>
+			<p class="subtitulo">${Shelfie.esc(e.subtitulo)}</p>
+			<div class="fila">
+				${e.obras.map(o => `
+					<article class="tarjeta-obra">
+						<span class="chip">${Shelfie.esc(NOMBRE_TIPO[o.tipo] || o.tipo)}</span>
+						<h3><a href="/work.html?id=${o.id}">${Shelfie.esc(o.titulo)}</a></h3>
+					</article>`).join("")}
+			</div>
+		</section>`).join("");
+}
+
+// ---------- Sugerencias mientras se escribe ----------
+function ocultarSugerencias() {
+	$("sugerencias").hidden = true;
+	$("sugerencias").innerHTML = "";
+}
+
+async function sugerir() {
+	const texto = $("titulo").value.trim();
+	if (texto.length < 2) { ocultarSugerencias(); return; }
+
+	// Cancelamos la petición anterior si seguía en curso.
+	if (controladorSug) { controladorSug.abort(); }
+	controladorSug = new AbortController();
+
+	const url = modo === "obras"
+		? "/sugerencias?texto=" + enc(texto)
+		: "/api/listas/sugerencias?texto=" + enc(texto);
+
+	try {
+		const r = await Shelfie.api(url, { signal: controladorSug.signal });
+		if (!r.ok || !Array.isArray(r.datos) || r.datos.length === 0) { ocultarSugerencias(); return; }
+
+		const destino = modo === "obras" ? "/work.html?id=" : "/lista.html?id=";
+		const campo = modo === "obras" ? "titulo" : "nombre";
+
+		$("sugerencias").innerHTML = r.datos.map(item =>
+			`<a href="${destino}${item.id}">${Shelfie.esc(item[campo])}</a>`).join("");
+		$("sugerencias").hidden = false;
+	} catch (e) {
+		// AbortError: la petición se canceló a propósito; no hay que hacer nada.
+	}
+}
+
+// ---------- Eventos ----------
+$("buscar").addEventListener("click", ejecutar);
+$("modoObras").addEventListener("click", () => cambiarModo("obras"));
+$("modoListas").addEventListener("click", () => cambiarModo("listas"));
+$("tipo").addEventListener("change", ejecutar);                      // filtrar al elegir tipo
+$("titulo").addEventListener("input", Shelfie.debounce(sugerir, 250)); // 1 petición cada 250 ms como mucho
+
+$("titulo").addEventListener("keydown", e => {
+	if (e.key === "Enter") { e.preventDefault(); ejecutar(); }       // buscar con Intro
+	if (e.key === "Escape") { ocultarSugerencias(); }
 });
 
-document
-.getElementById("modoListas")
-.addEventListener("click", () => {
-
-    modo = "listas";
-
+// Cerrar las sugerencias al pulsar fuera del buscador.
+document.addEventListener("click", e => {
+	if (!e.target.closest(".campo-sug")) { ocultarSugerencias(); }
 });
 
-document
-.getElementById("titulo")
-.addEventListener("input", sugerir);
-
-async function buscar() {
-
-    const texto =
-        document
-        .getElementById("titulo")
-        .value;
-
-    if(modo === "obras") {
-
-        const tipo =
-            document
-            .getElementById("tipo")
-            .value;
-
-        const respuesta =
-            await fetch(
-                "/search?titulo="
-                + encodeURIComponent(texto)
-                + "&tipo="
-                + encodeURIComponent(tipo)
-            );
-
-        const obras =
-            await respuesta.json();
-
-        mostrarResultados(obras);
-
-    } else {
-
-        const respuesta =
-            await fetch(
-                "/api/listas/buscar?texto="
-                + encodeURIComponent(texto)
-            );
-
-        const listas =
-            await respuesta.json();
-
-        mostrarResultadosListas(listas);
-
-    }
-}
-
-async function sugerir(){
-
-    const texto =
-        document.getElementById("titulo").value;
-
-    if(texto.length < 2){
-
-        document.getElementById(
-            "sugerencias"
-        ).innerHTML = "";
-
-        return;
-    }
-
-    if(modo === "obras"){
-
-        const respuesta =
-            await fetch(
-                "/sugerencias?texto="
-                + encodeURIComponent(texto)
-            );
-
-        const obras =
-            await respuesta.json();
-
-        mostrarSugerencias(obras);
-
-    }else{
-
-        const respuesta =
-            await fetch(
-                "/api/listas/sugerencias?texto="
-                + encodeURIComponent(texto)
-            );
-
-        const listas =
-            await respuesta.json();
-
-        mostrarSugerenciasListas(listas);
-
-    }
-
-}
-
-function mostrarSugerencias(obras){
-
-    const div =
-        document.getElementById(
-            "sugerencias"
-        );
-
-    div.innerHTML = "";
-
-    obras.forEach(obra => {
-
-        div.innerHTML +=
-        `
-        <div
-            onclick="abrirObra(${obra.id})"
-            style="
-                cursor:pointer;
-                padding:5px;
-                border-bottom:1px solid lightgray;
-            ">
-
-            ${obra.titulo}
-
-        </div>
-        `;
-    });
-}
-
-function mostrarSugerenciasListas(listas){
-
-    const div =
-        document.getElementById(
-            "sugerencias"
-        );
-
-    div.innerHTML = "";
-
-    listas.forEach(lista => {
-
-        div.innerHTML +=
-        `
-        <div
-            onclick="abrirLista(${lista.id})"
-            style="
-                cursor:pointer;
-                padding:5px;
-                border-bottom:1px solid lightgray;
-            ">
-
-            ${lista.nombre}
-
-        </div>
-        `;
-
-    });
-
-}
-
-function abrirObra(id){
-
-    window.location.href =
-        "/work.html?id=" + id;
-}
-
-function abrirLista(id){
-
-    window.location.href =
-        "lista.html?id=" + id;
-
-}
-
-function mostrarResultados(obras) {
-
-    const div =
-        document.getElementById("resultados");
-
-    div.innerHTML = "";
-
-    if(obras.length === 0){
-
-        div.innerHTML =
-            "<p>No se encontraron resultados</p>";
-
-        return;
-    }
-
-    obras.forEach(obra => {
-
-        div.innerHTML +=
-        `
-        <div>
-
-			<h3>
-			    <a href="/work.html?id=${obra.id}">
-			        ${obra.titulo}
-			    </a>
-			</h3>
-
-            <p>${obra.tipo}</p>
-
-        </div>
-        <hr>
-        `;
-    });
-}
-
-function mostrarResultadosListas(listas) {
-
-    const div =
-        document.getElementById(
-            "resultados"
-        );
-
-    div.innerHTML = "";
-
-    if(listas.length === 0){
-
-        div.innerHTML =
-        "<p>No se encontraron listas</p>";
-
-        return;
-    }
-
-    listas.forEach(lista => {
-
-        div.innerHTML += `
-
-        <div>
-
-            <h3>
-
-                <a href="lista.html?id=${lista.id}">
-                    ${lista.nombre}
-                </a>
-
-            </h3>
-
-            <p>
-                Creador:
-                ${lista.creador}
-            </p>
-
-            <p>
-                ${lista.descripcion ?? ""}
-            </p>
-
-        </div>
-
-        <hr>
-        `;
-
-    });
-
-}
-
+// Si llegamos con ?tipo=LIBRO o ?q=texto (desde la barra superior), los aplicamos.
+const params = new URLSearchParams(window.location.search);
+if (params.get("tipo")) { $("tipo").value = params.get("tipo"); }
+if (params.get("q")) { $("titulo").value = params.get("q"); }
+ejecutar();
 </script>
 
 </body>

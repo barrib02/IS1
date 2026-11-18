@@ -2,107 +2,53 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mi perfil - Shelfie</title>
+<link rel="icon" href="/images/logo.svg">
+<link rel="stylesheet" href="/css/shelfie.css">
+<script src="/js/shelfie.js"></script>
 
+<!-- Solo lo específico del perfil. Lo común (fondo, tarjetas, barra...) viene de shelfie.css.
+     IMPORTANTE: aquí ya NO hay "body { padding: 20px }", que era lo que daba margen a la barra. -->
 <style>
-body {
-	font-family: Arial, sans-serif;
-	background-color: #f5f3ef;
-	color: #382110;
-	margin: 0;
-	padding: 20px;
-}
-
-.pagina {
-	max-width: 900px;
-	margin: auto;
-}
-
-.cabecera {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	margin-bottom: 15px;
-}
-
-.tarjeta {
-	background: white;
-	border-radius: 10px;
-	padding: 20px;
-	margin-bottom: 20px;
-	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-h1, h2, h3 {
-	margin-top: 0;
-}
-
-textarea, input[type="text"], select {
-	width: 100%;
-	padding: 10px;
-	box-sizing: border-box;
-	font-family: inherit;
-}
-
-textarea {
-	height: 110px;
-	resize: vertical;
-}
-
-button {
+/* Los botones de esta página se estilan solo dentro de <main>
+   para no afectar a los de la barra superior. */
+main button {
 	padding: 8px 12px;
 	border: none;
 	border-radius: 5px;
-	background-color: #409d69;
+	background-color: var(--verde);
 	color: white;
 	cursor: pointer;
+	font: inherit;
+	font-size: 0.95rem;
+}
+main button:hover { background-color: var(--verde-oscuro); }
+main button.secundario { background-color: #8a7a6b; }
+main button.secundario:hover { background-color: #6e6054; }
+main button.peligro { background-color: var(--error); }
+main button.peligro:hover { background-color: #962d22; }
+main button:disabled { opacity: 0.4; cursor: default; }
+
+main h1, main h2, main h3 { margin-top: 0; }
+
+main textarea { height: 110px; resize: vertical; }
+
+/* Fila superior con los botones "Subir obra" y "Cerrar sesión" */
+.cabecera {
+	display: flex;
+	justify-content: flex-end;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-bottom: 15px;
 }
 
-button:hover {
-	background-color: #327b52;
-}
+.contador { text-align: right; font-size: 14px; margin: 5px 0 10px; }
+.contador.excedido { color: var(--error); }
 
-button.secundario {
-	background-color: #8a7a6b;
-}
+.bloque { margin-bottom: 25px; }
 
-button.secundario:hover {
-	background-color: #6e6054;
-}
-
-button.peligro {
-	background-color: #c0392b;
-}
-
-button.peligro:hover {
-	background-color: #962d22;
-}
-
-button:disabled {
-	opacity: 0.4;
-	cursor: default;
-}
-
-.contador {
-	text-align: right;
-	font-size: 14px;
-	margin: 5px 0 10px;
-}
-
-.contador.excedido {
-	color: red;
-}
-
-.bloque {
-	margin-bottom: 25px;
-}
-
-.vacio {
-	color: #8a7a6b;
-	font-style: italic;
-}
-
+/* Tarjetas de favoritos, listas y actividad */
 .fav, .lista {
 	display: flex;
 	flex-wrap: wrap;
@@ -110,95 +56,52 @@ button:disabled {
 	gap: 8px;
 	padding: 10px;
 	margin-bottom: 8px;
-	border: 1px solid #e3ddd3;
-	border-left: 5px solid #409d69;
+	border: 1px solid var(--borde);
+	border-left: 5px solid var(--verde);
 	border-radius: 6px;
 	background: #fbfaf7;
 }
+.fav .posicion { font-weight: bold; font-size: 18px; min-width: 24px; }
+.fav .titulo, .lista .titulo { flex: 1; min-width: 150px; font-weight: bold; }
+.fav a, .lista a { text-decoration: none; }
+.fav a:hover, .lista a:hover { text-decoration: underline; }
 
-.fav .posicion {
-	font-weight: bold;
-	font-size: 18px;
-	min-width: 24px;
-}
+.sustituir-caja { flex-basis: 100%; display: flex; gap: 8px; }
+.anadir-fila { display: flex; gap: 8px; margin-top: 10px; }
 
-.fav .titulo, .lista .titulo {
-	flex: 1;
-	min-width: 150px;
-	font-weight: bold;
-}
-
-.fav a, .lista a {
-	color: #382110;
-	text-decoration: none;
-}
-
-.fav a:hover, .lista a:hover {
-	text-decoration: underline;
-}
-
-.sustituir-caja {
-	flex-basis: 100%;
-	display: flex;
-	gap: 8px;
-}
-
-.anadir-fila {
-	display: flex;
-	gap: 8px;
-	margin-top: 10px;
-}
-
+/* Etiqueta "Pública / Privada". Se redefine porque shelfie.css
+   usa ".etiqueta" para los títulos de los formularios. */
 .etiqueta {
+	display: inline-block;
+	font-weight: normal;
+	margin: 0;
 	font-size: 12px;
 	padding: 2px 8px;
 	border-radius: 10px;
-	background: #e3ddd3;
+	background: var(--borde);
 }
+.etiqueta.publica { background: #cfe9d9; }
 
-.etiqueta.publica {
-	background: #cfe9d9;
-}
+/* Formulario para crear una lista */
+.form-lista { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 15px; }
+.form-lista input[type="text"] { flex: 1; min-width: 180px; width: auto; }
+/* El checkbox "Pública" no debe ocupar todo el ancho */
+.form-lista label { display: inline-flex; align-items: center; gap: 6px; font-weight: normal; margin: 0; }
+.form-lista input[type="checkbox"] { width: auto; padding: 0; }
 
-.form-lista {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 10px;
-	align-items: center;
-	margin-bottom: 15px;
-}
+#mensaje { min-height: 22px; font-weight: bold; }
+#mensaje.ok { color: var(--ok); }
+#mensaje.error { color: var(--error); }
 
-.form-lista input[type="text"] {
-	flex: 1;
-	min-width: 180px;
-	width: auto;
-}
-
-#mensaje {
-	min-height: 22px;
-	font-weight: bold;
-}
-
-#mensaje.ok {
-	color: green;
-}
-
-#mensaje.error {
-	color: red;
-}
-
-/* Cabecera del perfil */
-.portada-perfil {
-	position: relative;
-	margin-bottom: 85px;
-}
+/* Cabecera del perfil: banner + foto superpuesta */
+.portada-perfil { position: relative; margin-bottom: 85px; }
 
 #bannerPerfil {
 	width: 100%;
 	height: 240px;
 	object-fit: cover;
 	border-radius: 10px;
-	background-color: #e3ddd3;
+	background-color: var(--borde);
 }
 
 .datos-perfil {
@@ -216,25 +119,13 @@ button:disabled {
 	object-fit: cover;
 	border-radius: 50%;
 	border: 5px solid white;
-	background-color: #e3ddd3;
+	background-color: var(--borde);
 }
 
-#nombreUsuario {
-	margin-bottom: 12px;
-	font-size: 30px;
-}
+#nombreUsuario { margin-bottom: 12px; font-size: 30px; }
 
-.editar-imagenes {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 25px;
-	margin-bottom: 25px;
-}
-
-.editar-imagenes>div {
-	flex: 1;
-	min-width: 250px;
-}
+.editar-imagenes { display: flex; flex-wrap: wrap; gap: 25px; margin-bottom: 25px; }
+.editar-imagenes > div { flex: 1; min-width: 250px; }
 
 /* Ocultar el texto "Ningún archivo seleccionado" */
 .editar-imagenes input[type="file"] {
@@ -244,43 +135,30 @@ button:disabled {
 	white-space: nowrap;
 	color: transparent;
 }
+.editar-imagenes input[type="file"]::file-selector-button { color: var(--tinta); cursor: pointer; }
 
-.editar-imagenes input[type="file"]::file-selector-button {
-	color: #382110;
-	cursor: pointer;
+/* Móvil: banner y foto más pequeños para que no se salgan */
+@media (max-width: 600px) {
+	#bannerPerfil { height: 160px; }
+	.portada-perfil { margin-bottom: 65px; }
+	.datos-perfil { bottom: -45px; left: 12px; gap: 12px; }
+	#fotoPerfil { width: 90px; height: 90px; }
+	#nombreUsuario { font-size: 22px; }
 }
 </style>
 </head>
 
 <body>
-	<div class="pagina">
+
+	<!-- La barra superior va PRIMERA y fuera de cualquier contenedor:
+	     así ocupa todo el ancho, como en el resto de páginas. -->
+	<div id="navbar"></div>
+
+	<main class="contenedor">
 
 		<div class="cabecera">
-
-		    <a href="search.html">
-		        ← Volver al buscador
-		    </a>
-
-		    <div>
-
-		        <button
-		            type="button"
-		            onclick="window.location.href='subir-obra.html'">
-
-		            Subir obra
-
-		        </button>
-
-		        <button
-		            id="cerrarSesion"
-		            class="secundario">
-
-		            Cerrar sesión
-
-		        </button>
-
-		    </div>
-
+			<button type="button" onclick="window.location.href='subir-obra.html'">Subir obra</button>
+			<button id="cerrarSesion" class="secundario">Cerrar sesión</button>
 		</div>
 
 		<p id="mensaje" role="status" aria-live="polite"></p>
@@ -290,20 +168,16 @@ button:disabled {
 
 			<!-- Cabecera con banner y foto superpuesta -->
 			<div class="portada-perfil">
-
 				<img id="bannerPerfil" alt="Banner del perfil">
 
 				<div class="datos-perfil">
 					<img id="fotoPerfil" alt="Foto de perfil">
 					<h1 id="nombreUsuario">Mi perfil</h1>
 				</div>
-
 			</div>
 
 			<!-- Opciones para cambiar las imágenes -->
-
 			<div class="editar-imagenes">
-
 				<div>
 					<input type="file" id="archivoBanner" accept="image/*" hidden>
 					<button type="button" id="subirBanner">Cambiar banner</button>
@@ -313,25 +187,17 @@ button:disabled {
 					<input type="file" id="archivoFoto" accept="image/*" hidden>
 					<button type="button" id="subirFoto">Cambiar foto</button>
 				</div>
-
 			</div>
-
-
-
 
 			<hr style="margin: 25px 0;">
 
-
-
-
-			<label for="biografia"><b>Biografía</b></label>
+			<label for="biografia">Biografía</label>
 			<textarea id="biografia" maxlength="500"
 				placeholder="Preséntate ante otros usuarios..."></textarea>
 			<div id="contadorBio" class="contador">0 / 500</div>
 
 			<button id="guardarBio">Guardar biografía</button>
 		</section>
-
 
 		<!-- ACTIVIDAD RECIENTE (H4.5) -->
 		<section class="tarjeta">
@@ -342,7 +208,6 @@ button:disabled {
 				<p class="vacio">Cargando actividades...</p>
 			</div>
 		</section>
-
 
 		<!-- FAVORITOS (H4.1) -->
 		<section class="tarjeta">
@@ -357,14 +222,11 @@ button:disabled {
 
 			<form id="formLista" class="form-lista">
 				<input type="text" id="nombreLista" maxlength="100"
-					placeholder="Nombre de la nueva lista" required> 
-					<input
-					type="text"
-					id="descripcionLista"
-					maxlength="500"
+					placeholder="Nombre de la nueva lista" required>
+				<input type="text" id="descripcionLista" maxlength="500"
 					placeholder="Descripción de la lista (opcional)">
-					
-					<label>
+
+				<label>
 					<input type="checkbox" id="publicaLista"> Pública
 				</label>
 				<button type="submit">Crear lista</button>
@@ -373,7 +235,7 @@ button:disabled {
 			<div id="listas"></div>
 		</section>
 
-	</div>
+	</main>
 
 	<script>
     // ---------- Utilidades ----------
@@ -468,9 +330,6 @@ button:disabled {
         return b;
     }
 
-    // ---------- Perfil y biografía ----------
-    
-    
     // ---------- Foto de perfil y banner ----------
 
     async function subirImagen(tipo, inputId, imagenId) {
@@ -503,7 +362,6 @@ button:disabled {
         }, "Imagen actualizada correctamente.");
     }
 
-
     document.getElementById("subirFoto")
         .addEventListener("click", function () {
             document.getElementById("archivoFoto").click();
@@ -528,7 +386,7 @@ button:disabled {
             }
         });
 
-
+    // ---------- Perfil y biografía ----------
 
     const biografia = document.getElementById("biografia");
     const contadorBio = document.getElementById("contadorBio");
@@ -540,7 +398,6 @@ button:disabled {
     }
 
     biografia.addEventListener("input", actualizarContador);
-
 
     async function cargarPerfil() {
         const perfil = await api("/api/perfil");
@@ -562,7 +419,6 @@ button:disabled {
         }
     }
 
-
     document.getElementById("guardarBio")
         .addEventListener("click", function () {
 
@@ -579,7 +435,6 @@ button:disabled {
             actualizarContador();
         }, "Biografía guardada correctamente.");
     });
-    
 
     // ---------- Actividad reciente (H4.5) ----------
 
@@ -617,12 +472,9 @@ button:disabled {
 
             fila.appendChild(contenido);
 
-           
-
             contenedor.appendChild(fila);
         });
     }
-
 
     // ---------- Favoritos ----------
 
@@ -846,18 +698,10 @@ button:disabled {
             fila.appendChild(boton("Borrar", "peligro", () =>
                 borrarLista(lista)));
 
-				if(lista.descripcion){
+            if (lista.descripcion) {
+                fila.appendChild(crear("span", lista.descripcion));
+            }
 
-				    fila.appendChild(
-				        crear(
-				            "span",
-				            lista.descripcion
-				        )
-				    );
-
-				}
-			
-			
             contenedor.appendChild(fila);
         });
     }
@@ -869,97 +713,57 @@ button:disabled {
 
         const nombre = document.getElementById("nombreLista");
         const publica = document.getElementById("publicaLista");
-		const descripcion =
-		document.getElementById(
-		    "descripcionLista"
-		);
+        const descripcion = document.getElementById("descripcionLista");
 
         accion(async function () {
-			const descripcion =
-			    document.getElementById(
-			        "descripcionLista"
-			    );
+            await api("/api/listas", jsonPost({
+                nombre: nombre.value,
+                descripcion: descripcion.value,
+                publica: publica.checked
+            }, "POST"));
 
-				await api("/api/listas", jsonPost({
-
-				    nombre:
-				        nombre.value,
-
-				    descripcion:
-				        descripcion.value,
-
-				    publica:
-				        publica.checked
-
-				}, "POST"));
-
-				nombre.value = "";
-				descripcion.value = "";
-				publica.checked = false;
+            nombre.value = "";
+            descripcion.value = "";
+            publica.checked = false;
             await cargarListas();
         }, "Lista creada.");
     });
 
-	function renombrarLista(lista) {
+    function renombrarLista(lista) {
 
-	    const nuevoNombre =
-	        prompt(
-	            "Nuevo nombre:",
-	            lista.nombre
-	        );
+        const nuevoNombre = prompt("Nuevo nombre:", lista.nombre);
 
-	    if(nuevoNombre === null){
-	        return;
-	    }
+        if (nuevoNombre === null) {
+            return;
+        }
 
-	    const nuevaDescripcion =
-	        prompt(
-	            "Nueva descripción:",
-	            lista.descripcion || ""
-	        );
+        const nuevaDescripcion =
+            prompt("Nueva descripción:", lista.descripcion || "");
 
-	    if(nuevaDescripcion === null){
-	        return;
-	    }
+        if (nuevaDescripcion === null) {
+            return;
+        }
 
-	    accion(async function () {
+        accion(async function () {
+            await api("/api/listas/" + lista.id,
+                jsonPost({
+                    nombre: nuevoNombre,
+                    descripcion: nuevaDescripcion,
+                    publica: lista.publica
+                }, "PUT"));
 
-	        await api(
-	            "/api/listas/" + lista.id,
-	            jsonPost({
-
-	                nombre:
-	                    nuevoNombre,
-
-	                descripcion:
-	                    nuevaDescripcion,
-
-	                publica:
-	                    lista.publica
-
-	            }, "PUT")
-	        );
-
-	        await cargarListas();
-
-	    }, "Lista actualizada.");
-
-	}
+            await cargarListas();
+        }, "Lista actualizada.");
+    }
 
     function cambiarVisibilidad(lista) {
         accion(async function () {
-			await api("/api/listas/" + lista.id,
-			jsonPost({
-
-			    nombre: lista.nombre,
-
-			    descripcion:
-			        lista.descripcion,
-
-			    publica:
-			        !lista.publica
-
-			}, "PUT"));
+            await api("/api/listas/" + lista.id,
+                jsonPost({
+                    nombre: lista.nombre,
+                    descripcion: lista.descripcion,
+                    publica: !lista.publica
+                }, "PUT"));
             await cargarListas();
         }, "Visibilidad actualizada.");
     }
@@ -1003,10 +807,9 @@ button:disabled {
             mostrar(error.message, false);
         }
     }
-    
 
     iniciar();
-</script>
+	</script>
 
 </body>
 </html>

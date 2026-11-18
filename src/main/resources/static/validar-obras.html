@@ -2,105 +2,77 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Validar obras</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Validar obras - Shelfie</title>
+<link rel="icon" href="/images/logo.svg">
+<link rel="stylesheet" href="/css/shelfie.css">
+<script src="/js/shelfie.js"></script>
+<style>
+	.acciones { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+</style>
 </head>
-
 <body>
 
-<h1>Obras pendientes</h1>
+<div id="navbar"></div>
 
-<div id="obras"></div>
+<main class="contenedor">
+	<h1>Obras pendientes</h1>
+	<p id="msg" class="msg" role="status" aria-live="polite"></p>
+	<div id="obras"></div>
+</main>
 
 <script>
+const $ = id => document.getElementById(id);
 
-async function cargar(){
-
-    const respuesta =
-        await fetch(
-            "/api/obras/pendientes"
-        );
-
-    const obras =
-        await respuesta.json();
-
-    let html = "";
-
-    obras.forEach(obra=>{
-
-        html += `
-
-        <div>
-
-            <h3>${obra.titulo}</h3>
-
-            <p>
-                Autor:
-                ${obra.autor}
-            </p>
-
-            <p>
-                ${obra.descripcion}
-            </p>
-
-            <button
-                onclick="validar(${obra.id})">
-
-                Validar
-
-            </button>
-
-            <button
-                onclick="rechazar(${obra.id})">
-
-                Rechazar
-
-            </button>
-
-        </div>
-
-        <hr>
-
-        `;
-
-    });
-
-    document
-    .getElementById("obras")
-    .innerHTML = html;
-
+function mostrar(texto, correcto) {
+	$("msg").textContent = texto;
+	$("msg").className = "msg " + (correcto ? "ok" : "error");
 }
 
-async function validar(id){
+async function cargar() {
+	const r = await Shelfie.api("/api/obras/pendientes");
 
-    await fetch(
-        "/api/obras/" +
-        id +
-        "/validar",
-        {
-            method:"PUT"
-        }
-    );
+	if (!r.ok || !Array.isArray(r.datos)) {
+		$("obras").innerHTML = '<p class="vacio">No se han podido cargar las obras pendientes. ¿Tienes permisos de validador?</p>';
+		return;
+	}
 
-    cargar();
+	if (r.datos.length === 0) {
+		$("obras").innerHTML = '<p class="vacio">No hay obras pendientes de validar.</p>';
+		return;
+	}
+
+	$("obras").innerHTML = r.datos.map(obra => `
+		<article class="tarjeta">
+			<h3>${Shelfie.esc(obra.titulo)}</h3>
+			<p><b>Autor:</b> ${Shelfie.esc(obra.autor)}</p>
+			<p>${Shelfie.esc(obra.descripcion || "")}</p>
+			<div class="acciones">
+				<button type="button" class="btn" data-accion="validar" data-id="${obra.id}">Validar</button>
+				<button type="button" class="btn btn-peligro" data-accion="rechazar" data-id="${obra.id}">Rechazar</button>
+			</div>
+		</article>`).join("");
 }
 
-async function rechazar(id){
+// Un solo listener para todos los botones de la lista.
+$("obras").addEventListener("click", async function (evento) {
+	const boton = evento.target.closest("button[data-accion]");
+	if (!boton) { return; }
 
-    await fetch(
-        "/api/obras/" +
-        id +
-        "/rechazar",
-        {
-            method:"PUT"
-        }
-    );
+	boton.disabled = true;
+	const accion = boton.dataset.accion;
+	const r = await Shelfie.api("/api/obras/" + boton.dataset.id + "/" + accion, { method: "PUT" });
 
-    cargar();
-}
+	if (r.ok) {
+		mostrar(accion === "validar" ? "Obra validada." : "Obra rechazada.", true);
+		cargar();
+	} else {
+		boton.disabled = false;
+		mostrar(typeof r.datos === "string" && r.datos ? r.datos : "No se ha podido completar la acción.", false);
+	}
+});
 
 cargar();
-
 </script>
-
 </body>
 </html>

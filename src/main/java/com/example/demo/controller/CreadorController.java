@@ -6,7 +6,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.demo.dto.CreadorResponse;
-import com.example.demo.entity.Creador;
 import com.example.demo.service.CreadorService;
 
 @RestController
