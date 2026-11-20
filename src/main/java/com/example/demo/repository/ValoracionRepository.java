@@ -23,5 +23,7 @@ public interface ValoracionRepository extends JpaRepository<Valoracion, Long> {
 			ORDER BY AVG(v.puntuacion) DESC
 			""")
 	List<Object[]> obtenerRankingPorValoracion();
-
+	List<Valoracion> findByUsuarioId(Long usuarioId);
+	
+	void deleteByUsuarioId(Long usuarioId);
 }

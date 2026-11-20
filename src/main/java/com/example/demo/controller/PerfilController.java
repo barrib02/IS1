@@ -19,7 +19,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.example.demo.dto.BiografiaRequest;
+import com.example.demo.dto.NombreRequest;
 import com.example.demo.dto.PerfilResponse;
+import com.example.demo.dto.PrivacidadRequest;
 import com.example.demo.service.PerfilService;
 
 import jakarta.validation.Valid;
@@ -47,11 +49,23 @@ public class PerfilController {
 
 		return perfilService.actualizarBiografia(auth.getName(), request.getBiografia());
 	}
+	
+	// Editar mi nombre.
+	@PutMapping("/nombre")
+	public PerfilResponse editarNombre(@Valid @RequestBody NombreRequest request, Authentication auth) {
+		return perfilService.actualizarNombre(auth.getName(), request.getNombre());
+	}
 
 	// Perfil de otro usuario (datos públicos).
 	@GetMapping("/{id}")
-	public PerfilResponse perfilDeUsuario(@PathVariable Long id) {
-		return perfilService.obtenerPerfilPorId(id);
+	public PerfilResponse perfilDeUsuario(@PathVariable Long id, Authentication auth) {
+		return perfilService.obtenerPerfilPorId(id, auth.getName());
+	}
+
+	// Cuenta pública o privada.
+	@PutMapping("/privacidad")
+	public PerfilResponse cambiarPrivacidad(@RequestBody PrivacidadRequest request, Authentication auth) {
+		return perfilService.actualizarPrivacidad(auth.getName(), request.isPublico());
 	}
 
 	// Errores de negocio (usuario no encontrado, biografía demasiado larga).

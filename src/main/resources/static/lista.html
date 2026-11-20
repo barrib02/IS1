@@ -107,7 +107,7 @@ function pintar() {
 		titulo.appendChild(enlace);
 		fila.appendChild(titulo);
 
-		fila.appendChild(crear("span", Shelfie.formatearEnum(obra.tipo), "chip"));
+		fila.appendChild(crear("span", Shelfie.NOMBRE_TIPO[obra.tipo] || obra.tipo, "chip " + Shelfie.claseTipo(obra.tipo)));
 
 		// Solo el dueño puede quitar obras.
 		if (lista.mia) {

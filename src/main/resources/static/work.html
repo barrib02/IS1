@@ -29,6 +29,7 @@ let usuarioId = null;      // id del usuario con sesión
 let valoracionId = null;   // id de mi valoración (si ya existe) para hacer PUT en vez de POST
 let resenaId = null;       // id de mi reseña (si ya existe)
 let estrellas = null;      // control de estrellas
+let tipoObra = null;       // LIBRO, SERIE...
 
 // Crea un elemento con texto seguro (sin innerHTML).
 function crear(etiqueta, texto, clase) {
@@ -83,13 +84,14 @@ async function iniciar() {
 	prepararExperiencia();
 
 	// Estado, valoración, reseña, favoritos y listas: 5 peticiones en paralelo.
-	await Promise.all([cargarInteracciones(), pintarAcciones()]);
+	await Promise.all([cargarInteracciones(), pintarAcciones(), cargarProgreso()]);
 }
 
 // ======================================================
 // 2) Ficha de la obra
 // ======================================================
 function pintarObra(obra) {
+	tipoObra = obra.tipo;
 	document.title = obra.titulo + " - Shelfie";
 
 	const creador = obra.creador
@@ -108,7 +110,7 @@ function pintarObra(obra) {
 				<span id="zona-fav"></span>
 			</div>
 			<p><b>Creador:</b> ${creador}</p>
-			<p><b>Tipo:</b> ${Shelfie.esc(Shelfie.formatearEnum(obra.tipo))}
+			<p><b>Tipo:</b> ${Shelfie.chipTipo(obra.tipo)}
 				${obra.anio ? " · <b>Año:</b> " + Shelfie.esc(obra.anio) : ""}</p>
 			<div><b>Géneros:</b><div style="margin-top:6px">${generos}</div></div>
 			<p>${Shelfie.esc(obra.descripcion || "")}</p>
@@ -125,6 +127,29 @@ function pintarObra(obra) {
 						<option value="COMPLETADA">Completada</option>
 						<option value="ABANDONADA">Abandonada</option>
 					</select>
+					<div class="grupo" id="grupoFecha" hidden>
+						<label for="fechaCompletada">Fecha en la que la completaste</label>
+						<input type="date" id="fechaCompletada" style="max-width:220px">
+					</div>
+				</div>
+				
+				<div class="grupo" id="progreso" hidden>
+					<span class="etiqueta">Mi progreso</span>
+
+					<div id="progreso-libro" hidden>
+						<label for="paginas">Páginas leídas</label>
+						<input type="number" id="paginas" min="0">
+					</div>
+
+					<div id="progreso-serie" hidden>
+						<label for="temporada">Temporada actual</label>
+						<input type="number" id="temporada" min="1">
+						<label for="capitulo" style="margin-top:8px">Capítulo actual</label>
+						<input type="number" id="capitulo" min="1">
+					</div>
+
+					<button type="button" class="btn" id="guardarProgreso" style="margin-top:8px">Guardar progreso</button>
+					<p id="msgProgreso" class="msg" role="status"></p>
 				</div>
 
 				<div class="grupo">
@@ -151,6 +176,11 @@ function prepararExperiencia() {
 	$("estado").addEventListener("change", guardarEstado);
 	$("guardar").addEventListener("click", guardarValoracionYResena);
 	$("resena").addEventListener("input", contarPalabras);
+	if (tipoObra === "LIBRO") { $("progreso").hidden = false; $("progreso-libro").hidden = false; }
+	if (tipoObra === "SERIE") { $("progreso").hidden = false; $("progreso-serie").hidden = false; }
+	$("guardarProgreso").addEventListener("click", guardarProgreso);
+	$("fechaCompletada").max = hoyISO();                          // no se pueden elegir fechas futuras
+	$("fechaCompletada").addEventListener("change", guardarEstado); // cambiar la fecha la guarda
 }
 
 function contarPalabras() {
@@ -172,6 +202,7 @@ async function cargarInteracciones() {
 	]);
 
 	if (est.ok && est.datos) { $("estado").value = est.datos; }
+		actualizarGrupoFecha();
 
 	if (val.ok && val.datos) {
 		valoracionId = val.datos.id;
@@ -187,12 +218,32 @@ async function cargarInteracciones() {
 
 async function guardarEstado() {
 	const estado = $("estado").value;
-	if (!estado) { return; }   // evita llamar al backend con un estado vacío
+	if (!estado) { return; }
 
-	const r = await Shelfie.api(`/users/${usuarioId}/works/${obraId}/estado?estado=${encodeURIComponent(estado)}`,
-		{ method: "PUT" });
+	actualizarGrupoFecha();
 
-	r.ok ? mostrar("Estado actualizado.", true) : mostrar("No se ha podido cambiar el estado.", false);
+	let url = `/users/${usuarioId}/works/${obraId}/estado?estado=${encodeURIComponent(estado)}`;
+	if (estado === "COMPLETADA" && $("fechaCompletada").value) {
+		url += "&fecha=" + encodeURIComponent($("fechaCompletada").value);
+	}
+
+	const r = await Shelfie.api(url, { method: "PUT" });
+
+	r.ok ? mostrar("Estado actualizado.", true)
+		: mostrar(textoError(r, "No se ha podido cambiar el estado."), false);
+}
+
+// Fecha de hoy en formato yyyy-MM-dd, en hora local (toISOString usaría UTC).
+function hoyISO() {
+	const d = new Date();
+	return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+
+// Muestra el selector de fecha solo cuando el estado es "Completada".
+function actualizarGrupoFecha() {
+	const completada = $("estado").value === "COMPLETADA";
+	$("grupoFecha").hidden = !completada;
+	if (completada && !$("fechaCompletada").value) { $("fechaCompletada").value = hoyISO(); }
 }
 
 async function guardarValoracionYResena() {
@@ -244,6 +295,36 @@ async function guardarValoracionYResena() {
 		mostrar(error.message, false);
 	} finally {
 		$("guardar").disabled = false;
+	}
+}
+
+async function cargarProgreso() {
+	const r = await Shelfie.api("/api/progreso/obra/" + obraId);
+	if (!r.ok || !r.datos) { return; }
+
+	if (tipoObra === "LIBRO" || tipoObra === "SERIE") {
+		if (r.datos.paginasLeidas != null) { $("paginas").value = r.datos.paginasLeidas; }
+		if (r.datos.temporadaActual != null) { $("temporada").value = r.datos.temporadaActual; }
+		if (r.datos.capituloActual != null) { $("capitulo").value = r.datos.capituloActual; }
+	}
+	if (r.datos.fechaCompletada) { $("fechaCompletada").value = r.datos.fechaCompletada; }
+	actualizarGrupoFecha();
+}
+
+async function guardarProgreso() {
+	const num = id => $(id).value === "" ? null : Number($(id).value);
+	const cuerpo = tipoObra === "LIBRO"
+		? { paginasLeidas: num("paginas") }
+		: { temporadaActual: num("temporada"), capituloActual: num("capitulo") };
+
+	const r = await Shelfie.api("/api/progreso/obra/" + obraId,
+		{ method: "PUT", headers: JSON_HEADERS, body: JSON.stringify(cuerpo) });
+
+	if (r.ok) {
+				if (r.datos.estado) { $("estado").value = r.datos.estado; actualizarGrupoFecha(); }
+		mostrar("Progreso guardado.", true, "msgProgreso");
+	} else {
+		mostrar(textoError(r, "No se ha podido guardar el progreso."), false, "msgProgreso");
 	}
 }
 

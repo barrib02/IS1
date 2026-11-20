@@ -6,9 +6,11 @@ import java.util.Optional;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import com.example.demo.entity.EstadoValidacion;
 import com.example.demo.entity.GeneroObra;
 import com.example.demo.entity.Obra;
 import com.example.demo.entity.TipoObra;
@@ -56,5 +58,15 @@ public interface ObraRepository extends JpaRepository<Obra, Long> {
 			+ "(select x.id from Obra x join x.generos g where g in :generos) order by o.id desc")
 	List<Obra> buscarPorGenerosYTipo(@Param("generos") Collection<GeneroObra> generos,
 			@Param("tipo") TipoObra tipo, Pageable pageable);
+	
+	// Obras enviadas por un usuario (Mis obras).
+	List<Obra> findByAutorIdOrderByIdDesc(Long autorId);
+
+	// Obras por estado de validación (panel de moderación).
+	List<Obra> findByEstadoValidacionOrderByIdAsc(EstadoValidacion estado);
+	
+	@Modifying
+	@Query("update Obra o set o.autorId = null where o.autorId = :usuarioId")
+	void desvincularAutor(@Param("usuarioId") Long usuarioId);
 
 }

@@ -3,76 +3,192 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Validar obras - Shelfie</title>
+<title>Moderación - Shelfie</title>
 <link rel="icon" href="/images/logo.svg">
 <link rel="stylesheet" href="/css/shelfie.css">
 <script src="/js/shelfie.js"></script>
-<style>
-	.acciones { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-</style>
 </head>
 <body>
 
 <div id="navbar"></div>
 
 <main class="contenedor">
-	<h1>Obras pendientes</h1>
+
+	<h1>Panel de moderación</h1>
+
+	<!-- Pestañas por estado -->
+	<div id="pestanas" class="pestanas">
+		<button type="button" class="pestana activa" data-estado="PENDIENTE">Pendientes</button>
+		<button type="button" class="pestana" data-estado="VALIDADA">Validadas</button>
+		<button type="button" class="pestana" data-estado="RECHAZADA">Rechazadas</button>
+	</div>
+
+	<!-- Filtro por tipo y contador -->
+	<div class="barra-busqueda" id="barraFiltro">
+		<select id="filtroTipo" aria-label="Filtrar por tipo">
+			<option value="">Todos los tipos</option>
+			<option value="LIBRO">Libro</option>
+			<option value="PELICULA">Película</option>
+			<option value="SERIE">Serie</option>
+			<option value="VIDEOJUEGO">Videojuego</option>
+		</select>
+		<span id="contador" class="msg" style="align-self:center"></span>
+	</div>
+
 	<p id="msg" class="msg" role="status" aria-live="polite"></p>
-	<div id="obras"></div>
+	<div id="lista"></div>
+
 </main>
 
 <script>
 const $ = id => document.getElementById(id);
+const JSON_HEADERS = { "Content-Type": "application/json" };
+
+let estadoActual = "PENDIENTE";   // pestaña seleccionada
+let obras = [];                   // obras cargadas de esa pestaña
 
 function mostrar(texto, correcto) {
 	$("msg").textContent = texto;
 	$("msg").className = "msg " + (correcto ? "ok" : "error");
 }
 
+// ---------- Cargar las obras de la pestaña actual ----------
 async function cargar() {
-	const r = await Shelfie.api("/api/obras/pendientes");
+	mostrar("Cargando…", true);
+	$("lista").innerHTML = "";
+
+	const r = await Shelfie.apiSesion("/api/obras/moderacion?estado=" + estadoActual);
+
+	// Si no eres moderador, el servidor responde 403.
+	if (r.status === 403) {
+		$("pestanas").hidden = true;
+		$("barraFiltro").hidden = true;
+		$("msg").textContent = "";
+		$("lista").innerHTML = '<p class="callout error">Solo los moderadores pueden acceder a este panel.</p>';
+		return;
+	}
 
 	if (!r.ok || !Array.isArray(r.datos)) {
-		$("obras").innerHTML = '<p class="vacio">No se han podido cargar las obras pendientes. ¿Tienes permisos de validador?</p>';
+		mostrar("No se han podido cargar las obras.", false);
 		return;
 	}
 
-	if (r.datos.length === 0) {
-		$("obras").innerHTML = '<p class="vacio">No hay obras pendientes de validar.</p>';
-		return;
-	}
-
-	$("obras").innerHTML = r.datos.map(obra => `
-		<article class="tarjeta">
-			<h3>${Shelfie.esc(obra.titulo)}</h3>
-			<p><b>Autor:</b> ${Shelfie.esc(obra.autor)}</p>
-			<p>${Shelfie.esc(obra.descripcion || "")}</p>
-			<div class="acciones">
-				<button type="button" class="btn" data-accion="validar" data-id="${obra.id}">Validar</button>
-				<button type="button" class="btn btn-peligro" data-accion="rechazar" data-id="${obra.id}">Rechazar</button>
-			</div>
-		</article>`).join("");
+	obras = r.datos;
+	$("msg").textContent = "";
+	pintar();
 }
 
-// Un solo listener para todos los botones de la lista.
-$("obras").addEventListener("click", async function (evento) {
-	const boton = evento.target.closest("button[data-accion]");
-	if (!boton) { return; }
+// ---------- Dibujar las tarjetas (aplicando el filtro de tipo) ----------
+function pintar() {
+	const tipo = $("filtroTipo").value;
+	const visibles = obras.filter(o => !tipo || o.tipo === tipo);
+
+	$("contador").textContent = "Mostrando " + visibles.length + " de " + obras.length;
+
+	if (visibles.length === 0) {
+		$("lista").innerHTML = '<p class="vacio">No hay obras en esta sección.</p>';
+		return;
+	}
+
+	$("lista").innerHTML = visibles.map(o => {
+
+		// Justificación que ya tenía (en las pestañas de revisadas).
+		const anterior = o.justificacion
+			? '<p class="callout"><b>Justificación actual:</b> ' + Shelfie.esc(o.justificacion) + '</p>' : "";
+
+		// Pendientes: validar y rechazar. Validadas: solo rechazar. Rechazadas: solo validar.
+		const botonValidar = estadoActual !== "VALIDADA"
+			? `<button type="button" class="btn" data-accion="validar" data-id="${o.id}">Validar</button>` : "";
+		const botonRechazar = estadoActual !== "RECHAZADA"
+			? `<button type="button" class="btn btn-peligro" data-accion="rechazar" data-id="${o.id}">Rechazar</button>` : "";
+
+		return `
+			<article class="tarjeta" id="obra-${o.id}">
+				<div class="cabecera-obra">
+					<h3 style="margin:0">${Shelfie.esc(o.titulo)}</h3>
+					<span>${Shelfie.chipTipo(o.tipo)} ${Shelfie.chipEstado(o.estadoValidacion)}</span>
+				</div>
+				<p>Autor: ${Shelfie.esc(o.autor || "—")} · Enviada por: ${Shelfie.esc(o.enviadaPor || "usuario desconocido")}</p>
+
+				<details>
+					<summary>Ver descripción</summary>
+					<p>${Shelfie.esc(o.descripcion || "Sin descripción.")}</p>
+				</details>
+
+				${anterior}
+
+				<div class="grupo" style="margin-top:12px">
+					<label for="just-${o.id}">Justificación ${estadoActual === "PENDIENTE" ? "(obligatoria para rechazar)" : ""}</label>
+					<textarea id="just-${o.id}" rows="3" maxlength="1000"
+						placeholder="Explica tu decisión al autor…"></textarea>
+				</div>
+
+				<div class="acciones">
+					${botonValidar}
+					${botonRechazar}
+					<a class="btn btn-sec" href="/work.html?id=${o.id}">Ver ficha</a>
+				</div>
+			</article>`;
+	}).join("");
+}
+
+// ---------- Validar o rechazar ----------
+async function decidir(id, accion, boton) {
+
+	const campo = $("just-" + id);
+	const justificacion = campo.value.trim();
+
+	// Para rechazar la justificación es obligatoria (el servidor también lo comprueba).
+	if (accion === "rechazar" && justificacion === "") {
+		mostrar("Escribe una justificación para rechazar la obra.", false);
+		campo.focus();
+		return;
+	}
 
 	boton.disabled = true;
-	const accion = boton.dataset.accion;
-	const r = await Shelfie.api("/api/obras/" + boton.dataset.id + "/" + accion, { method: "PUT" });
 
-	if (r.ok) {
-		mostrar(accion === "validar" ? "Obra validada." : "Obra rechazada.", true);
-		cargar();
-	} else {
+	const r = await Shelfie.apiSesion("/api/obras/" + id + "/" + accion, {
+		method: "PUT",
+		headers: JSON_HEADERS,
+		body: JSON.stringify({ justificacion: justificacion })
+	});
+
+	if (!r.ok) {
 		boton.disabled = false;
-		mostrar(typeof r.datos === "string" && r.datos ? r.datos : "No se ha podido completar la acción.", false);
+		mostrar(typeof r.datos === "string" ? r.datos : "No se ha podido completar la acción.", false);
+		return;
 	}
+
+	// La obra cambia de pestaña: la quitamos de la lista actual.
+	obras = obras.filter(o => o.id !== id);
+	pintar();
+	mostrar(accion === "validar"
+		? "Obra validada. El autor ha recibido una notificación."
+		: "Obra rechazada. El autor ha recibido una notificación con tu justificación.", true);
+}
+
+// ---------- Eventos ----------
+
+// Un solo "escuchador" para todos los botones de las tarjetas.
+$("lista").addEventListener("click", function (evento) {
+	const boton = evento.target.closest("button[data-accion]");
+	if (boton) { decidir(Number(boton.dataset.id), boton.dataset.accion, boton); }
 });
+
+// Cambiar de pestaña.
+$("pestanas").addEventListener("click", function (evento) {
+	const pestana = evento.target.closest(".pestana");
+	if (!pestana) { return; }
+
+	estadoActual = pestana.dataset.estado;
+	document.querySelectorAll("#pestanas .pestana").forEach(p => p.classList.toggle("activa", p === pestana));
+	cargar();
+});
+
+$("filtroTipo").addEventListener("change", pintar);
 
 cargar();
 </script>
+
 </body>
 </html>

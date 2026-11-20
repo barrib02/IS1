@@ -3,9 +3,11 @@ package com.example.demo;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import java.time.LocalDate;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import com.example.demo.entity.EstadoObra;
 import com.example.demo.entity.EstadoUsuarioObra;
@@ -92,6 +94,30 @@ class EstadoUsuarioObraServiceTest {
 
 		verify(actividadService, never()).registrarActividad(anyLong(), anyLong(), anyString(), anyString());
 
+		verify(repo, never()).save(any(EstadoUsuarioObra.class));
+	}
+	
+	@Test
+	void completarConFechaPasadaGuardaEsaFecha() {
+		EstadoUsuarioObraRepository repo = mock(EstadoUsuarioObraRepository.class);
+		EstadoUsuarioObraService service = new EstadoUsuarioObraService(repo, mock(ActividadService.class));
+		when(repo.findByUsuarioIdAndObraId(1L, 10L)).thenReturn(Optional.empty());
+
+		LocalDate ayer = LocalDate.now().minusDays(1);
+		service.cambiarEstado(1L, 10L, EstadoObra.COMPLETADA, ayer);
+
+		ArgumentCaptor<EstadoUsuarioObra> captor = ArgumentCaptor.forClass(EstadoUsuarioObra.class);
+		verify(repo).save(captor.capture());
+		assertEquals(ayer, captor.getValue().getFechaCompletada().toLocalDate());
+	}
+
+	@Test
+	void unaFechaFuturaLanzaError() {
+		EstadoUsuarioObraRepository repo = mock(EstadoUsuarioObraRepository.class);
+		EstadoUsuarioObraService service = new EstadoUsuarioObraService(repo, mock(ActividadService.class));
+
+		assertThrows(IllegalArgumentException.class,
+				() -> service.cambiarEstado(1L, 10L, EstadoObra.COMPLETADA, LocalDate.now().plusDays(1)));
 		verify(repo, never()).save(any(EstadoUsuarioObra.class));
 	}
 

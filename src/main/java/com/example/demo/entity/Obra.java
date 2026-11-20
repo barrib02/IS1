@@ -2,6 +2,9 @@ package com.example.demo.entity;
 
 import java.util.HashSet;
 import java.util.Set;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import jakarta.persistence.*;
 import jakarta.persistence.Column;
 import jakarta.persistence.ManyToOne;
@@ -146,6 +149,17 @@ public class Obra {
 
 	public void setAutorId(Long autorId) {
 		this.autorId = autorId;
+	}
+	
+	// Motivo escrito por el moderador al validar o rechazar.
+	@Column(length = 1000)
+	private String justificacionModeracion;
+
+	@JsonIgnore
+	public String getJustificacionModeracion() { return justificacionModeracion; }
+
+	public void setJustificacionModeracion(String justificacionModeracion) {
+		this.justificacionModeracion = justificacionModeracion;
 	}
 
 }

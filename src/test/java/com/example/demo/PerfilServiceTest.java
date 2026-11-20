@@ -235,5 +235,42 @@ class PerfilServiceTest {
 		verifyNoInteractions(cloudinaryService);
 		verify(repo, never()).save(any(Usuario.class));
 	}
+	
+	@Test
+	void actualizarNombre_guardaElNombreLimpio() {
+		UsuarioRepository repo = mock(UsuarioRepository.class);
+		PerfilService service = new PerfilService(repo, mock(CloudinaryService.class));
+		Usuario usuario = new Usuario();
+		when(repo.findByEmail("a@a.com")).thenReturn(Optional.of(usuario));
+
+		PerfilResponse r = service.actualizarNombre("a@a.com", "  Kevin  ");
+
+		assertEquals("Kevin", r.getNombre());
+		verify(repo).save(usuario);
+	}
+
+	@Test
+	void actualizarNombre_vacioLanzaError() {
+		UsuarioRepository repo = mock(UsuarioRepository.class);
+		PerfilService service = new PerfilService(repo, mock(CloudinaryService.class));
+
+		assertThrows(IllegalArgumentException.class, () -> service.actualizarNombre("a@a.com", "   "));
+	}
+	
+	@Test
+	void perfilPrivadoOcultaLaBiografiaAOtrosPeroNoAlDueno() {
+		UsuarioRepository repo = mock(UsuarioRepository.class);
+		PerfilService service = new PerfilService(repo, mock(CloudinaryService.class));
+
+		Usuario usuario = new Usuario();
+		usuario.setNombre("Kevin");
+		usuario.setEmail("kevin@gmail.com");
+		usuario.setBiografia("secreta");
+		usuario.setPerfilPublico(false);
+		when(repo.findById(1L)).thenReturn(Optional.of(usuario));
+
+		assertNull(service.obtenerPerfilPorId(1L, "otro@a.com").getBiografia());
+		assertEquals("secreta", service.obtenerPerfilPorId(1L, "kevin@gmail.com").getBiografia());
+	}
 
 }

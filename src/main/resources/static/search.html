@@ -55,7 +55,7 @@ let modo = "obras";        // "obras" o "listas"
 let numeroPeticion = 0;    // sirve para ignorar respuestas antiguas
 let controladorSug = null; // permite cancelar la petición de sugerencias anterior
 
-const NOMBRE_TIPO = { LIBRO: "Libro", PELICULA: "Película", SERIE: "Serie", VIDEOJUEGO: "Videojuego" };
+const NOMBRE_TIPO = Shelfie.NOMBRE_TIPO;
 const NOMBRE_PLURAL = { LIBRO: "libros", PELICULA: "películas", SERIE: "series", VIDEOJUEGO: "videojuegos" };
 
 // ---------- Cambio de pestaña ----------
@@ -135,8 +135,8 @@ function pintarObras(obras) {
 		return;
 	}
 	caja.innerHTML = obras.map(o => `
-		<article class="tarjeta-obra">
-			<span class="chip">${Shelfie.esc(NOMBRE_TIPO[o.tipo] || o.tipo)}</span>
+	<article class="tarjeta-obra ${Shelfie.claseTipo(o.tipo)}">
+	${Shelfie.chipTipo(o.tipo)}
 			<h3><a href="/work.html?id=${o.id}">${Shelfie.esc(o.titulo)}</a></h3>
 		</article>`).join("");
 }
@@ -172,8 +172,8 @@ function pintarEstantes(estantes) {
 			<p class="subtitulo">${Shelfie.esc(e.subtitulo)}</p>
 			<div class="fila">
 				${e.obras.map(o => `
-					<article class="tarjeta-obra">
-						<span class="chip">${Shelfie.esc(NOMBRE_TIPO[o.tipo] || o.tipo)}</span>
+					<article class="tarjeta-obra ${Shelfie.claseTipo(o.tipo)}">
+					${Shelfie.chipTipo(o.tipo)}
 						<h3><a href="/work.html?id=${o.id}">${Shelfie.esc(o.titulo)}</a></h3>
 					</article>`).join("")}
 			</div>

@@ -18,4 +18,6 @@ public interface FavoritoRepository extends JpaRepository<Favorito, Long> {
     long countByUsuarioIdAndTipo(Long usuarioId, TipoObra tipo);
 
     Optional<Favorito> findByUsuarioIdAndObraId(Long usuarioId, Long obraId);
+    
+    void deleteByUsuarioId(Long usuarioId);
 }

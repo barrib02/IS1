@@ -149,4 +149,16 @@ public class Usuario {
 	public void setBannerUrl(String bannerUrl) {
 		this.bannerUrl = bannerUrl;
 	}
+	
+	// true = cualquiera puede ver tu biografía. Los usuarios antiguos (null) se tratan como públicos.
+	@Column(name = "perfil_publico")
+	private Boolean perfilPublico = true;
+
+	public boolean isPerfilPublico() {
+		return perfilPublico == null || perfilPublico;
+	}
+
+	public void setPerfilPublico(boolean perfilPublico) {
+		this.perfilPublico = perfilPublico;
+	}
 }

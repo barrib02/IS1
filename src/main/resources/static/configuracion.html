@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Configuración - Shelfie</title>
+<link rel="icon" href="/images/logo.svg">
+<link rel="stylesheet" href="/css/shelfie.css">
+<script src="/js/shelfie.js"></script>
+<style>
+	.previa-banner { width: 100%; height: 140px; object-fit: cover; border-radius: 10px; background: var(--borde); }
+	.previa-foto { width: 90px; height: 90px; object-fit: cover; border-radius: 50%; background: var(--borde); }
+	.contador { text-align: right; font-size: 14px; }
+	.contador.excedido { color: var(--error); }
+	.zona-peligro { border-color: var(--error); }
+</style>
+</head>
+<body>
+
+<div id="navbar"></div>
+
+<main class="contenedor">
+
+	<p><a href="/perfil.html">← Volver a mi perfil</a></p>
+	<h1>Configuración del perfil</h1>
+
+	<p id="msg" class="msg" role="status" aria-live="polite"></p>
+
+	<section class="tarjeta">
+		<h2>Nombre</h2>
+		<div class="grupo">
+			<label for="nombre">Nombre</label>
+			<input type="text" id="nombre" maxlength="100">
+		</div>
+		<button type="button" class="btn" id="guardarNombre">Guardar nombre</button>
+	</section>
+
+	<section class="tarjeta">
+		<h2>Biografía</h2>
+		<div class="grupo">
+			<textarea id="biografia" maxlength="500" placeholder="Preséntate ante otros usuarios..."></textarea>
+			<div id="contadorBio" class="contador">0 / 500</div>
+		</div>
+		<button type="button" class="btn" id="guardarBio">Guardar biografía</button>
+	</section>
+	
+	<section class="tarjeta">
+		<h2>Privacidad</h2>
+		<label style="display:flex;align-items:center;gap:10px;font-weight:normal">
+			<input type="checkbox" id="cuentaPublica" style="width:auto"> Cuenta pública
+		</label>
+		<p id="textoPrivacidad" class="vacio"></p>
+	</section>
+
+	<section class="tarjeta">
+		<h2>Banner</h2>
+		<img id="previaBanner" class="previa-banner" alt="Banner actual">
+		<div class="acciones">
+			<input type="file" id="archivoBanner" accept="image/*" hidden>
+			<button type="button" class="btn" id="subirBanner">Cambiar banner</button>
+		</div>
+	</section>
+
+	<section class="tarjeta">
+		<h2>Foto de perfil</h2>
+		<img id="previaFoto" class="previa-foto" alt="Foto actual">
+		<div class="acciones">
+			<input type="file" id="archivoFoto" accept="image/*" hidden>
+			<button type="button" class="btn" id="subirFoto">Cambiar foto</button>
+		</div>
+	</section>
+
+	<section class="tarjeta zona-peligro">
+		<h2>Eliminar cuenta</h2>
+		<p>Se borrarán tus valoraciones, reseñas, listas, favoritos, progreso y notificaciones.
+			Las obras que subiste seguirán en el catálogo. <b>Esta acción no se puede deshacer.</b></p>
+		<div class="grupo" style="max-width:320px">
+			<label for="passwordEliminar">Confirma con tu contraseña</label>
+			<input type="password" id="passwordEliminar" autocomplete="current-password">
+		</div>
+		<button type="button" class="btn btn-peligro" id="eliminarCuenta">Eliminar mi cuenta</button>
+	</section>
+
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const JSON_HEADERS = { "Content-Type": "application/json" };
+const MAX_BIO = 500;
+
+function mostrar(texto, correcto) {
+	$("msg").textContent = texto;
+	$("msg").className = "msg " + (correcto ? "ok" : "error");
+	window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function textoError(r, defecto) {
+	return typeof r.datos === "string" && r.datos ? r.datos : defecto;
+}
+
+function actualizarContador() {
+	const n = $("biografia").value.length;
+	$("contadorBio").textContent = n + " / " + MAX_BIO;
+	$("contadorBio").className = n > MAX_BIO ? "contador excedido" : "contador";
+}
+$("biografia").addEventListener("input", actualizarContador);
+
+function textoPrivacidad() {
+	$("textoPrivacidad").textContent = $("cuentaPublica").checked
+		? "Cualquier usuario puede ver tu biografía."
+		: "Los demás usuarios solo verán tu nombre y tus imágenes.";
+}
+
+$("cuentaPublica").addEventListener("change", async function () {
+	const publico = this.checked;
+	const r = await Shelfie.apiSesion("/api/perfil/privacidad",
+		{ method: "PUT", headers: JSON_HEADERS, body: JSON.stringify({ publico }) });
+
+	if (r.ok) {
+		textoPrivacidad();
+		mostrar(publico ? "Tu cuenta ahora es pública." : "Tu cuenta ahora es privada.", true);
+	} else {
+		this.checked = !publico;   // deshacemos el cambio visual
+		mostrar(textoError(r, "No se ha podido cambiar la privacidad."), false);
+	}
+});
+
+async function cargar() {
+	const r = await Shelfie.apiSesion("/api/perfil");
+	if (!r.ok || !r.datos) { mostrar("No se ha podido cargar tu perfil.", false); return; }
+
+	$("nombre").value = r.datos.nombre || "";
+	$("biografia").value = r.datos.biografia || "";
+	actualizarContador();
+	$("cuentaPublica").checked = r.datos.perfilPublico;
+	textoPrivacidad();
+	if (r.datos.bannerUrl) { $("previaBanner").src = r.datos.bannerUrl; }
+	if (r.datos.fotoPerfilUrl) { $("previaFoto").src = r.datos.fotoPerfilUrl; }
+}
+
+// ---------- Nombre y biografía ----------
+$("guardarNombre").addEventListener("click", async function () {
+	const r = await Shelfie.apiSesion("/api/perfil/nombre",
+		{ method: "PUT", headers: JSON_HEADERS, body: JSON.stringify({ nombre: $("nombre").value }) });
+	r.ok ? mostrar("Nombre actualizado.", true) : mostrar(textoError(r, "No se ha podido guardar el nombre."), false);
+});
+
+$("guardarBio").addEventListener("click", async function () {
+	if ($("biografia").value.length > MAX_BIO) {
+		mostrar("La biografía no puede superar los 500 caracteres.", false);
+		return;
+	}
+	const r = await Shelfie.apiSesion("/api/perfil/biografia",
+		{ method: "PUT", headers: JSON_HEADERS, body: JSON.stringify({ biografia: $("biografia").value }) });
+	r.ok ? mostrar("Biografía guardada correctamente.", true)
+		: mostrar(textoError(r, "No se ha podido guardar la biografía."), false);
+});
+
+// ---------- Banner y foto ----------
+async function subirImagen(ruta, inputId, imagenId) {
+	const archivo = $(inputId).files[0];
+	if (!archivo) { return; }
+	if (!archivo.type.startsWith("image/")) { mostrar("El archivo debe ser una imagen.", false); return; }
+
+	const datos = new FormData();
+	datos.append("archivo", archivo);
+
+	const r = await Shelfie.apiSesion("/api/perfil/" + ruta, { method: "POST", body: datos });
+
+	if (r.ok && r.datos && r.datos.url) {
+		$(imagenId).src = r.datos.url;
+		mostrar("Imagen actualizada correctamente.", true);
+	} else {
+		mostrar(textoError(r, "No se ha podido subir la imagen."), false);
+	}
+	$(inputId).value = "";
+}
+
+$("subirBanner").addEventListener("click", () => $("archivoBanner").click());
+$("subirFoto").addEventListener("click", () => $("archivoFoto").click());
+$("archivoBanner").addEventListener("change", () => subirImagen("banner", "archivoBanner", "previaBanner"));
+$("archivoFoto").addEventListener("change", () => subirImagen("foto", "archivoFoto", "previaFoto"));
+
+// ---------- Eliminar cuenta ----------
+$("eliminarCuenta").addEventListener("click", async function () {
+	const password = $("passwordEliminar").value;
+	if (!password) { mostrar("Escribe tu contraseña para confirmar.", false); return; }
+	if (!confirm("¿Seguro que quieres eliminar tu cuenta? No se puede deshacer.")) { return; }
+
+	$("eliminarCuenta").disabled = true;
+	const r = await Shelfie.api("/api/cuenta/eliminar",
+		{ method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ password }) });
+
+	if (r.ok) {
+		window.location.href = "/registro.html";
+	} else {
+		$("eliminarCuenta").disabled = false;
+		mostrar(textoError(r, "No se ha podido eliminar la cuenta."), false);
+	}
+});
+
+cargar();
+</script>
+
+</body>
+</html>

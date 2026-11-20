@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mis estadísticas - Shelfie</title>
+<link rel="icon" href="/images/logo.svg">
+<link rel="stylesheet" href="/css/shelfie.css">
+<script src="/js/shelfie.js"></script>
+</head>
+<style>
+	.tarjeta-stat { width: 100%; text-align: center; cursor: pointer; font: inherit; color: inherit; }
+	.tarjeta-stat:hover { transform: translateY(-2px); }
+	.tarjeta-stat.seleccionada { box-shadow: 0 0 0 3px var(--ambar); }
+</style>
+<body>
+
+<div id="navbar"></div>
+
+<main class="contenedor">
+
+	<h1>Mis estadísticas</h1>
+
+	<div class="grupo" style="max-width:260px">
+		<label for="periodo">Periodo</label>
+		<select id="periodo">
+			<option value="TODO">Todo el tiempo</option>
+			<option value="SEMANA">Últimos 7 días</option>
+			<option value="MES">Últimos 30 días</option>
+			<option value="ANIO">Último año</option>
+		</select>
+	</div>
+
+	<p id="msg" class="msg" role="status"></p>
+	<div id="numeros" class="rejilla"></div>
+	
+	<section class="tarjeta" id="detalle" hidden>
+		<h2 id="detalleTitulo"></h2>
+		<div id="detalleLista"></div>
+	</section>
+	
+	<section class="tarjeta">
+		<h2>Obras completadas en los últimos 12 meses</h2>
+		<div id="grafica"><p class="vacio">Cargando…</p></div>
+	</section>
+
+	<section class="tarjeta">
+		<h2>Géneros favoritos</h2>
+		<div id="generos"></div>
+	</section>
+
+	<section class="tarjeta" id="exportar">
+		<h2>Exportar mis datos</h2>
+		<div class="grupo" style="max-width:260px">
+			<label for="formato">Formato</label>
+			<select id="formato">
+				<option value="csv">CSV (Excel)</option>
+				<option value="json">JSON</option>
+			</select>
+		</div>
+		<div class="acciones">
+			<button type="button" class="btn" data-exportar="listas">Exportar listas</button>
+			<button type="button" class="btn" data-exportar="valoraciones">Exportar valoraciones</button>
+			<button type="button" class="btn" data-exportar="resenas">Exportar reseñas</button>
+		</div>
+		<p id="msgExportar" class="msg" role="status" aria-live="polite"></p>
+	</section>
+
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+
+function tarjetaNumero(valor, etiqueta, tipo) {
+	return `<button type="button" class="tarjeta-obra tarjeta-stat" data-tipo="${tipo}" aria-pressed="false">
+		<span style="display:block;font-size:2.2rem;font-family:var(--fuente-titulos)">${Number(valor)}</span>
+		<span style="display:block;color:var(--tinta-suave);font-size:0.9rem">${Shelfie.esc(etiqueta)}</span>
+	</button>`;
+}
+
+async function descargar(tipo, boton) {
+	const msg = $("msgExportar");
+	boton.disabled = true;
+	msg.className = "msg";
+	msg.textContent = "Generando archivo…";
+
+	try {
+		const respuesta = await fetch("/api/exportar/" + tipo + "?formato=" + encodeURIComponent($("formato").value),
+			{ credentials: "same-origin" });
+
+		if (respuesta.status === 401) { window.location.href = "/login.html"; return; }
+		if (!respuesta.ok) { throw new Error(await respuesta.text() || "No se ha podido exportar."); }
+
+		// Nombre del archivo que propone el servidor (Content-Disposition).
+		const cabecera = respuesta.headers.get("Content-Disposition") || "";
+		const coincidencia = cabecera.match(/filename="?([^";]+)"?/);
+		const nombre = coincidencia ? coincidencia[1] : "shelfie-" + tipo;
+
+		const url = URL.createObjectURL(await respuesta.blob());
+		const enlace = document.createElement("a");
+		enlace.href = url;
+		enlace.download = nombre;
+		document.body.appendChild(enlace);
+		enlace.click();
+		enlace.remove();
+		URL.revokeObjectURL(url);
+
+		msg.className = "msg ok";
+		msg.textContent = "Archivo descargado: " + nombre;
+	} catch (error) {
+		msg.className = "msg error";
+		msg.textContent = error.message;
+	} finally {
+		boton.disabled = false;
+	}
+}
+
+document.querySelectorAll("[data-exportar]").forEach(boton =>
+	boton.addEventListener("click", () => descargar(boton.dataset.exportar, boton)));
+	
+	const TITULO_DETALLE = {
+		LIBRO: "Libros leídos",
+		PELICULA: "Películas vistas",
+		SERIE: "Series completadas",
+		VIDEOJUEGO: "Videojuegos completados"
+	};
+
+	let tipoSeleccionado = null;
+
+	// "2026-11-20T11:27:09" -> "20/11/2026"
+	function formatearFecha(iso) {
+		const [a, m, d] = String(iso).substring(0, 10).split("-");
+		return d + "/" + m + "/" + a;
+	}
+
+	function marcarSeleccion() {
+		document.querySelectorAll("#numeros [data-tipo]").forEach(b => {
+			const activa = b.dataset.tipo === tipoSeleccionado;
+			b.classList.toggle("seleccionada", activa);
+			b.setAttribute("aria-pressed", String(activa));
+		});
+	}
+
+	async function cargarDetalle() {
+		if (!tipoSeleccionado) { $("detalle").hidden = true; return; }
+
+		const r = await Shelfie.apiSesion("/api/estadisticas/completadas?tipo=" + encodeURIComponent(tipoSeleccionado)
+			+ "&periodo=" + encodeURIComponent($("periodo").value));
+
+		$("detalle").hidden = false;
+		$("detalleTitulo").textContent = TITULO_DETALLE[tipoSeleccionado];
+
+		if (!r.ok || !Array.isArray(r.datos)) {
+			$("detalleLista").innerHTML = '<p class="msg error">No se ha podido cargar la lista.</p>';
+			return;
+		}
+		if (r.datos.length === 0) {
+			$("detalleLista").innerHTML = '<p class="vacio">No hay obras completadas en este periodo.</p>';
+			return;
+		}
+
+		$("detalleLista").innerHTML = r.datos.map(o => `
+			<div class="lista-fila">
+				<a href="/work.html?id=${Number(o.obraId)}">${Shelfie.esc(o.titulo)}</a>
+				<span>${Shelfie.esc(formatearFecha(o.fecha))}</span>
+			</div>`).join("");
+	}
+
+	$("numeros").addEventListener("click", function (evento) {
+		const boton = evento.target.closest("[data-tipo]");
+		if (!boton) { return; }
+
+		// Pulsar otra vez la misma tarjeta cierra la lista.
+		tipoSeleccionado = (tipoSeleccionado === boton.dataset.tipo) ? null : boton.dataset.tipo;
+		marcarSeleccion();
+		cargarDetalle();
+	});
+
+async function cargar() {
+	$("msg").textContent = "Cargando…";
+	const r = await Shelfie.apiSesion("/api/estadisticas?periodo=" + encodeURIComponent($("periodo").value));
+
+	if (!r.ok || !r.datos) {
+		$("msg").className = "msg error";
+		$("msg").textContent = "No se han podido cargar las estadísticas.";
+		return;
+	}
+	$("msg").textContent = "";
+	const e = r.datos;
+
+	$("numeros").innerHTML =
+		tarjetaNumero(e.librosLeidos, "Libros leídos", "LIBRO") +
+		tarjetaNumero(e.peliculasVistas, "Películas vistas", "PELICULA") +
+		tarjetaNumero(e.seriesCompletadas, "Series completadas", "SERIE") +
+		tarjetaNumero(e.videojuegosCompletados, "Videojuegos completados", "VIDEOJUEGO");
+
+	marcarSeleccion();
+	cargarDetalle();
+
+	if (!e.generosFavoritos.length) {
+		$("generos").innerHTML = '<p class="vacio">Todavía no hay datos en este periodo.</p>';
+		return;
+	}
+	const max = e.generosFavoritos[0].total;
+	$("generos").innerHTML = e.generosFavoritos.map(g => `
+		<div style="margin-bottom:10px">
+			<b>${Shelfie.esc(Shelfie.formatearEnum(g.genero))}</b> (${Number(g.total)})
+			<div style="background:var(--borde);border-radius:6px;height:10px">
+				<div style="background:var(--verde);border-radius:6px;height:10px;width:${Math.round(g.total * 100 / max)}%"></div>
+			</div>
+		</div>`).join("");
+}
+async function cargarGrafica() {
+	const r = await Shelfie.apiSesion("/api/estadisticas/mensual");
+	if (!r.ok || !Array.isArray(r.datos)) {
+		$("grafica").innerHTML = '<p class="msg error">No se ha podido cargar la gráfica.</p>';
+		return;
+	}
+	Shelfie.graficaMensual($("grafica"), r.datos);
+}
+cargarGrafica();
+
+
+$("periodo").addEventListener("change", cargar);
+cargar();
+</script>
+
+</body>
+</html>

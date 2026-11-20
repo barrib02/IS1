@@ -13,38 +13,70 @@
 <div id="navbar"></div>
 
 <main class="contenedor">
-	<section class="tarjeta">
-		<h1>Estado de validación</h1>
-		<p id="estado" class="msg" role="status">Cargando…</p>
-		<p><a href="/search.html">Volver al buscador</a></p>
+
+	<h1>Estado de validación</h1>
+
+	<section class="tarjeta" id="contenido">
+		<p class="vacio">Cargando…</p>
 	</section>
+
+	<p><a href="/mis-obras.html">← Ver mis obras</a></p>
+
 </main>
 
 <script>
-const id = new URLSearchParams(window.location.search).get("id");
+const id = Number(new URLSearchParams(window.location.search).get("id"));
 
 async function cargar() {
-	const caja = document.getElementById("estado");
+	const caja = document.getElementById("contenido");
 
-	if (!id) {
-		caja.className = "msg error";
-		caja.textContent = "Falta el identificador de la obra.";
+	if (!Number.isInteger(id) || id < 1) {
+		caja.innerHTML = '<p class="callout error">Falta indicar la obra.</p>';
 		return;
 	}
 
-	const r = await Shelfie.api("/api/obras/" + id + "/validacion");
+	// Título de la obra y estado, a la vez.
+	const [obra, validacion] = await Promise.all([
+		Shelfie.api("/work/" + id),
+		Shelfie.apiSesion("/api/obras/" + id + "/validacion")
+	]);
 
-	if (!r.ok) {
-		caja.className = "msg error";
-		caja.textContent = typeof r.datos === "string" && r.datos ? r.datos : "No se ha podido consultar el estado.";
+	if (validacion.status === 403) {
+		caja.innerHTML = '<p class="callout error">Solo el autor de la obra o un moderador pueden ver este estado.</p>';
 		return;
 	}
 
-	caja.className = "msg";
-	caja.textContent = typeof r.datos === "string" ? r.datos : JSON.stringify(r.datos);
+	if (!validacion.ok || !obra.ok) {
+		caja.innerHTML = '<p class="callout error">No se ha podido consultar la obra.</p>';
+		return;
+	}
+
+	const estado = validacion.datos.estado;
+	const mensajes = {
+		PENDIENTE: "Un moderador revisará tu obra pronto.",
+		VALIDADA: "Tu obra ha sido aprobada y forma parte del catálogo.",
+		RECHAZADA: "Tu obra ha sido rechazada. Corrígela y vuelve a enviarla."
+	};
+
+	let html = '<div class="cabecera-obra"><h2 style="margin:0">' + Shelfie.esc(obra.datos.titulo) + '</h2><span>' +
+		Shelfie.chipTipo(obra.datos.tipo) + ' ' + Shelfie.chipEstado(estado) + '</span></div>' +
+		'<p>' + Shelfie.esc(mensajes[estado] || "") + '</p>';
+
+	// Justificación del moderador (si la hay).
+	if (validacion.datos.justificacion) {
+		const clase = estado === "RECHAZADA" ? "callout error" : "callout ok";
+		html += '<p class="' + clase + '"><b>Justificación del moderador:</b> ' +
+			Shelfie.esc(validacion.datos.justificacion) + '</p>';
+	}
+
+	html += '<div class="acciones"><a class="btn" href="/subir-obra.html?id=' + id + '">Editar obra</a>' +
+		'<a class="btn btn-sec" href="/work.html?id=' + id + '">Ver ficha</a></div>';
+
+	caja.innerHTML = html;
 }
 
 cargar();
 </script>
+
 </body>
 </html>

@@ -57,7 +57,9 @@ public class SecurityConfig {
 						.requestMatchers("/", "/index.html", "/login.html", "/registro.html", "/search.html",
 								"/work.html", "/resenas.html", "/valoraciones.html", "/perfil.html", // <-- NUEVO
 								"/lista.html", // <-- NUEVO
-								"/css/**", "/js/**", "/images/**", "/favicon.ico")
+								"/css/**", "/js/**", "/images/**", "/favicon.ico", "/subir-obra.html",
+								"/mis-obras.html", "/validar-obras.html", "/estado-validacion.html",
+								"/notificaciones.html", "/creador.html", "/publicas.html")
 						.permitAll()
 
 						// H6.1 - Registro de usuarios.
@@ -65,7 +67,8 @@ public class SecurityConfig {
 						.requestMatchers(HttpMethod.POST, "/api/auth/registro", "/api/auth/login").permitAll()
 
 						// H6.1 - Verificación del correo electrónico.
-						.requestMatchers(HttpMethod.GET, "/search", "/work/*", "/sugerencias", "/explorar/**").permitAll()
+						.requestMatchers(HttpMethod.GET, "/search", "/work/*", "/sugerencias", "/explorar/**")
+						.permitAll()
 
 						// H6.2 - Cierre de sesión.
 						.requestMatchers(HttpMethod.POST, "/api/auth/logout").authenticated()
@@ -86,7 +89,8 @@ public class SecurityConfig {
 						.requestMatchers("/work/*/estado").authenticated()
 
 						// NUEVO: perfil, favoritos y listas requieren sesión.
-						.requestMatchers("/api/perfil/**", "/api/favoritos/**", "/api/listas/**").authenticated()
+						.requestMatchers("/api/perfil/**", "/api/favoritos/**", "/api/listas/**",
+								"/api/progreso/**", "/api/estadisticas/**", "/configuracion.html", "/api/exportar/**").authenticated()
 
 						// El resto queda protegido por defecto.
 						.anyRequest().authenticated());

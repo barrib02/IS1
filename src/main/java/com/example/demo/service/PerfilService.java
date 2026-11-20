@@ -37,9 +37,28 @@ public class PerfilService {
 
 	// Perfil de cualquier usuario por su id (solo datos públicos).
 	public PerfilResponse obtenerPerfilPorId(Long id) {
+		return obtenerPerfilPorId(id, null);
+	}
+
+	// Si la cuenta es privada y quien consulta no es su dueño, se oculta la biografía.
+	public PerfilResponse obtenerPerfilPorId(Long id, String emailSolicitante) {
 		Usuario usuario = usuarioRepository.findById(id)
 				.orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
 
+		PerfilResponse respuesta = convertir(usuario);
+
+		boolean esPropio = emailSolicitante != null && emailSolicitante.equalsIgnoreCase(usuario.getEmail());
+		if (!usuario.isPerfilPublico() && !esPropio) {
+			respuesta.setBiografia(null);
+		}
+		return respuesta;
+	}
+
+	@Transactional
+	public PerfilResponse actualizarPrivacidad(String email, boolean publico) {
+		Usuario usuario = obtenerUsuarioPorEmail(email);
+		usuario.setPerfilPublico(publico);
+		usuarioRepository.save(usuario);
 		return convertir(usuario);
 	}
 
@@ -63,8 +82,11 @@ public class PerfilService {
 
 	// Convierte la entidad en el DTO que se envía al navegador.
 	private PerfilResponse convertir(Usuario usuario) {
-		return new PerfilResponse(usuario.getId(), usuario.getNombre(), usuario.getBiografia(),
-				usuario.getFotoPerfilUrl(), usuario.getBannerUrl());
+		PerfilResponse respuesta = new PerfilResponse(usuario.getId(), usuario.getNombre(),
+				usuario.getBiografia(), usuario.getFotoPerfilUrl(), usuario.getBannerUrl());
+		respuesta.setRol(usuario.getRol() == null ? "USUARIO" : usuario.getRol().name());
+		respuesta.setPerfilPublico(usuario.isPerfilPublico());
+		return respuesta;
 	}
 
 	// H4.2 - Subir o cambiar la foto de perfil
@@ -100,6 +122,26 @@ public class PerfilService {
 		Usuario usuario = obtenerUsuarioPorEmail(email);
 
 		return usuario.getRol() == com.example.demo.entity.RolUsuario.MODERADOR;
+	}
+	
+	// Cambia el nombre del usuario autenticado.
+	@Transactional
+	public PerfilResponse actualizarNombre(String email, String nombre) {
+
+		String limpio = (nombre == null) ? "" : nombre.trim();
+
+		if (limpio.isEmpty()) {
+			throw new IllegalArgumentException("El nombre es obligatorio");
+		}
+		if (limpio.length() > 100) {
+			throw new IllegalArgumentException("El nombre no puede superar los 100 caracteres");
+		}
+
+		Usuario usuario = obtenerUsuarioPorEmail(email);
+		usuario.setNombre(limpio);
+		usuarioRepository.save(usuario);
+
+		return convertir(usuario);
 	}
 
 }

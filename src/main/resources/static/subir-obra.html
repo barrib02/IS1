@@ -7,27 +7,28 @@
 <link rel="icon" href="/images/logo.svg">
 <link rel="stylesheet" href="/css/shelfie.css">
 <script src="/js/shelfie.js"></script>
-<style>
-	.formulario { max-width: 600px; margin: 0 auto; }
-</style>
 </head>
 <body>
 
 <div id="navbar"></div>
 
 <main class="contenedor">
-	<section class="tarjeta formulario">
 
-		<h1>Subir nueva obra</h1>
+	<h1 id="tituloPagina">Subir nueva obra</h1>
+
+	<!-- Avisos: motivo del rechazo, aviso de revalidación, errores de permisos... -->
+	<div id="avisos"></div>
+
+	<form id="formObra" class="tarjeta">
 
 		<div class="grupo">
 			<label for="titulo">Título</label>
-			<input id="titulo" placeholder="Título de la obra">
+			<input id="titulo" maxlength="255" required>
 		</div>
 
 		<div class="grupo">
-			<label for="autor">Autor</label>
-			<input id="autor" placeholder="Autor o creador">
+			<label for="autor">Autor / creador de la obra</label>
+			<input id="autor" maxlength="255">
 		</div>
 
 		<div class="grupo">
@@ -42,55 +43,112 @@
 
 		<div class="grupo">
 			<label for="descripcion">Descripción</label>
-			<textarea id="descripcion" placeholder="De qué trata la obra…"></textarea>
+			<textarea id="descripcion" rows="6" maxlength="4000"></textarea>
 		</div>
 
-		<button type="button" class="btn" id="guardar">Guardar</button>
+		<button type="submit" class="btn" id="guardar">Enviar para validación</button>
 		<p id="msg" class="msg" role="status" aria-live="polite"></p>
+	</form>
 
-	</section>
+	<p><a href="/mis-obras.html">← Ver mis obras</a></p>
+
 </main>
 
 <script>
 const $ = id => document.getElementById(id);
+const JSON_HEADERS = { "Content-Type": "application/json" };
+
+// Si la URL trae ?id=7 estamos EDITANDO la obra 7; si no, creando una nueva.
+const obraId = Number(new URLSearchParams(window.location.search).get("id")) || null;
 
 function mostrar(texto, correcto) {
 	$("msg").textContent = texto;
 	$("msg").className = "msg " + (correcto ? "ok" : "error");
 }
 
-$("guardar").addEventListener("click", async function () {
-	const obra = {
-		titulo: $("titulo").value.trim(),
-		autor: $("autor").value.trim(),
-		descripcion: $("descripcion").value.trim(),
-		tipo: $("tipo").value
-	};
+// Texto de error del servidor, o uno genérico.
+function textoError(r, defecto) {
+	return typeof r.datos === "string" && r.datos ? r.datos : defecto;
+}
 
-	if (!obra.titulo || !obra.autor) {
-		mostrar("El título y el autor son obligatorios.", false);
+// ---------- Modo edición: cargar la obra y comprobar permisos ----------
+async function prepararEdicion() {
+	$("tituloPagina").textContent = "Editar obra";
+	$("guardar").textContent = "Guardar cambios";
+
+	// La obra y su estado se piden a la vez. /validacion responde 403 si no eres el autor.
+	const [obra, validacion] = await Promise.all([
+		Shelfie.api("/work/" + obraId),
+		Shelfie.apiSesion("/api/obras/" + obraId + "/validacion")
+	]);
+
+	if (!obra.ok) {
+		$("formObra").hidden = true;
+		$("avisos").innerHTML = '<p class="callout error">Esa obra no existe.</p>';
 		return;
 	}
 
+	if (!validacion.ok) {
+		$("formObra").hidden = true;
+		$("avisos").innerHTML = '<p class="callout error">Solo el autor de la obra (o un moderador) puede editarla.</p>';
+		return;
+	}
+
+	// Rellenamos el formulario con los datos actuales.
+	$("titulo").value = obra.datos.titulo || "";
+	$("autor").value = obra.datos.autor || "";
+	$("tipo").value = obra.datos.tipo || "LIBRO";
+	$("descripcion").value = obra.datos.descripcion || "";
+
+	let avisos = '<p class="callout">Si cambias algo, la obra volverá a <b>revisarse</b> por un moderador antes de aparecer como validada.</p>';
+
+	// Si la rechazaron, mostramos el motivo para que sepa qué corregir.
+	if (validacion.datos.estado === "RECHAZADA" && validacion.datos.justificacion) {
+		avisos = '<p class="callout error"><b>Motivo del rechazo:</b> ' +
+			Shelfie.esc(validacion.datos.justificacion) + '</p>' + avisos;
+	}
+
+	$("avisos").innerHTML = avisos;
+}
+
+// ---------- Guardar (crear o editar) ----------
+$("formObra").addEventListener("submit", async function (evento) {
+	evento.preventDefault();
+
+	const cuerpo = {
+		titulo: $("titulo").value,
+		autor: $("autor").value,
+		tipo: $("tipo").value,
+		descripcion: $("descripcion").value
+	};
+
 	$("guardar").disabled = true;
 
-	const r = await Shelfie.api("/api/obras", {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify(obra)
-	});
+	const r = await Shelfie.apiSesion(
+		obraId ? "/api/obras/" + obraId : "/api/obras",
+		{ method: obraId ? "PUT" : "POST", headers: JSON_HEADERS, body: JSON.stringify(cuerpo) });
 
 	$("guardar").disabled = false;
 
-	if (r.ok) {
-		mostrar("Obra enviada para validación.", true);
-		$("titulo").value = "";
-		$("autor").value = "";
-		$("descripcion").value = "";
-	} else {
-		mostrar(typeof r.datos === "string" && r.datos ? r.datos : "No se ha podido enviar la obra.", false);
+	if (!r.ok) {
+		mostrar(textoError(r, "No se ha podido guardar la obra."), false);
+		return;
 	}
+
+	const texto = obraId
+		? "Cambios guardados. La obra volverá a ser revisada por un moderador."
+		: "Obra enviada para validación.";
+
+	// Mensaje con enlace a la pantalla de estado de validación.
+	$("msg").className = "msg ok";
+	$("msg").innerHTML = Shelfie.esc(texto) +
+		' <a href="/estado-validacion.html?id=' + Number(r.datos.id) + '">Ver estado de validación</a>';
+
+	if (!obraId) { $("formObra").reset(); }
 });
+
+if (obraId) { prepararEdicion(); }
 </script>
+
 </body>
 </html>

@@ -3,58 +3,70 @@ package com.example.demo.dto;
 
 public class PerfilResponse {
 
-    private Long id;
-    private String nombre;
-    private String biografia;
-    private String fotoPerfilUrl;
-    private String bannerUrl;
+	private Long id;
+	private String nombre;
+	private String biografia;
+	private String fotoPerfilUrl;
+	private String bannerUrl;
+	private String rol;
+	private boolean perfilPublico = true;
 
-    public PerfilResponse(Long id, String nombre, String biografia,
-            String fotoPerfilUrl, String bannerUrl) {
-        this.id = id;
-        this.nombre = nombre;
-        this.biografia = biografia;
-        this.fotoPerfilUrl = fotoPerfilUrl;
-        this.bannerUrl = bannerUrl;
-    }
+	public String getRol() {
+		return rol;
+	}
 
-    public Long getId() {
-        return id;
-    }
+	public void setRol(String rol) {
+		this.rol = rol;
+	}
 
-    public void setId(Long id) {
-        this.id = id;
-    }
+	public PerfilResponse(Long id, String nombre, String biografia, String fotoPerfilUrl, String bannerUrl) {
+		this.id = id;
+		this.nombre = nombre;
+		this.biografia = biografia;
+		this.fotoPerfilUrl = fotoPerfilUrl;
+		this.bannerUrl = bannerUrl;
+	}
 
-    public String getNombre() {
-        return nombre;
-    }
+	public Long getId() {
+		return id;
+	}
 
-    public void setNombre(String nombre) {
-        this.nombre = nombre;
-    }
+	public void setId(Long id) {
+		this.id = id;
+	}
 
-    public String getBiografia() {
-        return biografia;
-    }
+	public String getNombre() {
+		return nombre;
+	}
 
-    public void setBiografia(String biografia) {
-        this.biografia = biografia;
-    }
+	public void setNombre(String nombre) {
+		this.nombre = nombre;
+	}
 
-    public String getFotoPerfilUrl() {
-        return fotoPerfilUrl;
-    }
+	public String getBiografia() {
+		return biografia;
+	}
 
-    public void setFotoPerfilUrl(String fotoPerfilUrl) {
-        this.fotoPerfilUrl = fotoPerfilUrl;
-    }
+	public void setBiografia(String biografia) {
+		this.biografia = biografia;
+	}
 
-    public String getBannerUrl() {
-        return bannerUrl;
-    }
+	public String getFotoPerfilUrl() {
+		return fotoPerfilUrl;
+	}
 
-    public void setBannerUrl(String bannerUrl) {
-        this.bannerUrl = bannerUrl;
-    }
+	public void setFotoPerfilUrl(String fotoPerfilUrl) {
+		this.fotoPerfilUrl = fotoPerfilUrl;
+	}
+
+	public String getBannerUrl() {
+		return bannerUrl;
+	}
+
+	public void setBannerUrl(String bannerUrl) {
+		this.bannerUrl = bannerUrl;
+	}
+
+	public boolean isPerfilPublico() { return perfilPublico; }
+	public void setPerfilPublico(boolean perfilPublico) { this.perfilPublico = perfilPublico; }
 }

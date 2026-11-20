@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mis obras - Shelfie</title>
+<link rel="icon" href="/images/logo.svg">
+<link rel="stylesheet" href="/css/shelfie.css">
+<script src="/js/shelfie.js"></script>
+</head>
+<body>
+
+<div id="navbar"></div>
+
+<main class="contenedor">
+
+	<div class="cabecera-obra">
+		<h1 style="margin:0">Mis obras</h1>
+		<a class="btn" href="/subir-obra.html">+ Subir una obra</a>
+	</div>
+
+	<p id="resumen" class="msg" role="status"></p>
+	<div id="lista"></div>
+
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+
+async function cargar() {
+	const r = await Shelfie.apiSesion("/api/obras/mias");
+
+	if (!r.ok || !Array.isArray(r.datos)) {
+		$("resumen").className = "msg error";
+		$("resumen").textContent = "No se han podido cargar tus obras.";
+		return;
+	}
+
+	const obras = r.datos;
+
+	if (obras.length === 0) {
+		$("resumen").textContent = "";
+		$("lista").innerHTML = '<p class="vacio">Todavía no has enviado ninguna obra. ' +
+			'<a href="/subir-obra.html">Sube la primera</a>.</p>';
+		return;
+	}
+
+	// Resumen: cuántas hay en cada estado.
+	const cuenta = e => obras.filter(o => o.estadoValidacion === e).length;
+	$("resumen").className = "msg";
+	$("resumen").textContent = obras.length + " en total · " + cuenta("PENDIENTE") + " pendientes · " +
+		cuenta("VALIDADA") + " validadas · " + cuenta("RECHAZADA") + " rechazadas";
+
+	$("lista").innerHTML = obras.map(o => {
+
+		// Mensaje según el estado.
+		let aviso = "";
+		if (o.estadoValidacion === "RECHAZADA") {
+			aviso = '<p class="callout error"><b>Motivo del rechazo:</b> ' +
+				Shelfie.esc(o.justificacion || "El moderador no ha indicado un motivo.") +
+				'<br><small>Edita la obra para corregirla: volverá a revisión automáticamente.</small></p>';
+		} else if (o.estadoValidacion === "VALIDADA" && o.justificacion) {
+			aviso = '<p class="callout ok"><b>Nota del moderador:</b> ' + Shelfie.esc(o.justificacion) + '</p>';
+		} else if (o.estadoValidacion === "PENDIENTE") {
+			aviso = '<p class="callout">Un moderador la revisará pronto.</p>';
+		}
+
+		return `
+			<article class="tarjeta">
+				<div class="cabecera-obra">
+					<h3 style="margin:0">${Shelfie.esc(o.titulo)}</h3>
+					<span>${Shelfie.chipTipo(o.tipo)} ${Shelfie.chipEstado(o.estadoValidacion)}</span>
+				</div>
+				<p>Autor: ${Shelfie.esc(o.autor || "—")}</p>
+				${aviso}
+				<div class="acciones">
+					<a class="btn" href="/subir-obra.html?id=${o.id}">Editar</a>
+					<a class="btn btn-sec" href="/work.html?id=${o.id}">Ver ficha</a>
+				</div>
+			</article>`;
+	}).join("");
+}
+
+cargar();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notificaciones - Shelfie</title>
+<link rel="icon" href="/images/logo.svg">
+<link rel="stylesheet" href="/css/shelfie.css">
+<script src="/js/shelfie.js"></script>
+</head>
+<body>
+
+<div id="navbar"></div>
+
+<main class="contenedor">
+
+	<div class="cabecera-obra">
+		<h1 style="margin:0">Notificaciones</h1>
+		<button type="button" class="btn btn-sec" id="marcarTodas">Marcar todas como leídas</button>
+	</div>
+
+	<p id="msg" class="msg" role="status" aria-live="polite"></p>
+	<div id="lista"></div>
+
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+
+let notificaciones = [];
+
+// A dónde lleva cada tipo de notificación al pulsarla.
+function destino(n) {
+	if (n.tipo === "OBRA_RECHAZADA") { return "/mis-obras.html"; }               // para poder corregirla
+	if (n.tipo === "OBRA_VALIDADA" && n.obraId) { return "/work.html?id=" + n.obraId; }
+	return "/mis-obras.html";
+}
+
+// Etiqueta de color según el tipo de aviso.
+function etiqueta(n) {
+	if (n.tipo === "OBRA_VALIDADA") { return Shelfie.chipEstado("VALIDADA"); }
+	if (n.tipo === "OBRA_RECHAZADA") { return Shelfie.chipEstado("RECHAZADA"); }
+	return '<span class="chip">Aviso</span>';
+}
+
+function pintar() {
+	if (notificaciones.length === 0) {
+		$("lista").innerHTML = '<p class="vacio">No tienes notificaciones.</p>';
+		return;
+	}
+
+	$("lista").innerHTML = notificaciones.map(n => `
+		<a class="notif ${n.leida ? "" : "nueva"}" href="${destino(n)}" data-id="${n.id}">
+			${etiqueta(n)}
+			<p style="margin:6px 0 2px">${Shelfie.esc(n.mensaje)}</p>
+			<small>${new Date(n.fecha).toLocaleString("es-ES")}${n.leida ? "" : " · sin leer"}</small>
+		</a>`).join("");
+}
+
+async function cargar() {
+	const r = await Shelfie.apiSesion("/api/notificaciones");
+
+	if (!r.ok || !Array.isArray(r.datos)) {
+		$("msg").className = "msg error";
+		$("msg").textContent = "No se han podido cargar las notificaciones.";
+		return;
+	}
+
+	notificaciones = r.datos;
+	pintar();
+}
+
+// Al pulsar una notificación: la marcamos como leída y vamos a su destino.
+$("lista").addEventListener("click", async function (evento) {
+	const enlace = evento.target.closest("a.notif");
+	if (!enlace) { return; }
+
+	evento.preventDefault();
+	await Shelfie.apiSesion("/api/notificaciones/" + enlace.dataset.id + "/leida", { method: "PUT" });
+	window.location.href = enlace.getAttribute("href");
+});
+
+$("marcarTodas").addEventListener("click", async function () {
+	const r = await Shelfie.apiSesion("/api/notificaciones/leidas", { method: "PUT" });
+
+	if (r.ok) {
+		notificaciones.forEach(n => n.leida = true);
+		pintar();
+		$("msg").className = "msg ok";
+		$("msg").textContent = "Todas marcadas como leídas.";
+
+		// El globo rojo de la campana ya no tiene sentido: lo ocultamos.
+		const globo = document.querySelector(".contador-campana");
+		if (globo) { globo.hidden = true; }
+	} else {
+		$("msg").className = "msg error";
+		$("msg").textContent = "No se ha podido completar la acción.";
+	}
+});
+
+cargar();
+</script>
+
+</body>
+</html>

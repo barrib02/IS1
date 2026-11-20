@@ -13,4 +13,5 @@ public interface ActividadRepository extends JpaRepository<Actividad, Long> {
     // ordenadas desde la más reciente.
     List<Actividad> findByUsuarioIdOrderByFechaDesc(Long usuarioId);
 
+    void deleteByUsuarioId(Long usuarioId);
 }

@@ -43,6 +43,11 @@ main textarea { height: 110px; resize: vertical; }
 	margin-bottom: 15px;
 }
 
+main button.icono { display: inline-flex; align-items: center; padding: 8px 10px; }
+
+#diario > summary { font-family: var(--fuente-titulos); font-size: 1.5rem; }
+#diario[open] > summary { margin-bottom: 12px; }
+
 .contador { text-align: right; font-size: 14px; margin: 5px 0 10px; }
 .contador.excedido { color: var(--error); }
 
@@ -94,9 +99,9 @@ main textarea { height: 110px; resize: vertical; }
 #mensaje.error { color: var(--error); }
 
 /* Cabecera del perfil: banner + foto superpuesta */
-.portada-perfil { position: relative; margin-bottom: 85px; }
-
+/* Cabecera del perfil: banner, foto superpuesta, nombre y biografía debajo */
 #bannerPerfil {
+	display: block;
 	width: 100%;
 	height: 240px;
 	object-fit: cover;
@@ -104,16 +109,17 @@ main textarea { height: 110px; resize: vertical; }
 	background-color: var(--borde);
 }
 
-.datos-perfil {
-	position: absolute;
-	bottom: -65px;
-	left: 25px;
+.fila-perfil {
 	display: flex;
-	align-items: flex-end;
+	align-items: flex-end;   /* el nombre queda a la altura del borde inferior de la foto */
 	gap: 20px;
+	padding: 0 25px;
+	margin-top: -65px;       /* la foto sube sobre el banner */
 }
 
 #fotoPerfil {
+	position: relative;      /* para que pinte por encima del banner */
+	flex: 0 0 auto;
 	width: 130px;
 	height: 130px;
 	object-fit: cover;
@@ -122,7 +128,14 @@ main textarea { height: 110px; resize: vertical; }
 	background-color: var(--borde);
 }
 
-#nombreUsuario { margin-bottom: 12px; font-size: 30px; }
+#nombreUsuario { margin: 0 0 12px; font-size: 30px; }
+
+.biografia {
+	margin: 16px 0 0;
+	padding: 0 25px;
+	white-space: pre-wrap;        /* respeta los saltos de línea */
+	overflow-wrap: anywhere;
+}
 
 .editar-imagenes { display: flex; flex-wrap: wrap; gap: 25px; margin-bottom: 25px; }
 .editar-imagenes > div { flex: 1; min-width: 250px; }
@@ -137,13 +150,37 @@ main textarea { height: 110px; resize: vertical; }
 }
 .editar-imagenes input[type="file"]::file-selector-button { color: var(--tinta); cursor: pointer; }
 
+/* Calendario de obras completadas */
+.cab-calendario { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+.cab-calendario h2 { margin: 0; text-transform: capitalize; }
+.calendario { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.cal-semana { text-align: center; font-weight: bold; font-size: 0.8rem; color: var(--tinta-suave); }
+.cal-dia {
+	min-height: 84px; padding: 4px; overflow: hidden;
+	border: 1px solid var(--borde); border-radius: 6px; background: #fbfaf7; font-size: 0.8rem;
+}
+.cal-dia.fuera { background: transparent; border-color: transparent; }
+.cal-dia.hoy { border-color: var(--ambar); border-width: 2px; }
+.cal-dia .num { color: var(--tinta-suave); }
+.cal-dia a {
+	display: block; margin-top: 3px; padding: 1px 5px; border-radius: 6px;
+	font-size: 0.75rem; text-decoration: none;
+	overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cal-dia a.tipo-libro      { background: var(--f-libro);      color: var(--c-libro); }
+.cal-dia a.tipo-pelicula   { background: var(--f-pelicula);   color: var(--c-pelicula); }
+.cal-dia a.tipo-serie      { background: var(--f-serie);      color: var(--c-serie); }
+.cal-dia a.tipo-videojuego { background: var(--f-videojuego); color: var(--c-videojuego); }
+
 /* Móvil: banner y foto más pequeños para que no se salgan */
 @media (max-width: 600px) {
 	#bannerPerfil { height: 160px; }
-	.portada-perfil { margin-bottom: 65px; }
-	.datos-perfil { bottom: -45px; left: 12px; gap: 12px; }
+	.fila-perfil { gap: 12px; padding: 0 12px; margin-top: -45px; }
 	#fotoPerfil { width: 90px; height: 90px; }
-	#nombreUsuario { font-size: 22px; }
+	#nombreUsuario { font-size: 22px; margin-bottom: 8px; }
+	.biografia { padding: 0 12px; }
+	.cal-dia { min-height: 56px; }
+	.cal-dia a { font-size: 0.65rem; padding: 0 3px; }
 }
 </style>
 </head>
@@ -157,7 +194,16 @@ main textarea { height: 110px; resize: vertical; }
 	<main class="contenedor">
 
 		<div class="cabecera">
+			<button type="button" class="icono" aria-label="Configuración" title="Configuración"
+				onclick="window.location.href='configuracion.html'">
+				<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
+					stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+					<circle cx="12" cy="12" r="3"/>
+					<path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+				</svg>
+			</button>
 			<button type="button" onclick="window.location.href='subir-obra.html'">Subir obra</button>
+			<button type="button" onclick="window.location.href='mis-obras.html'">Mis obras</button>
 			<button id="cerrarSesion" class="secundario">Cerrar sesión</button>
 		</div>
 
@@ -169,35 +215,20 @@ main textarea { height: 110px; resize: vertical; }
 			<!-- Cabecera con banner y foto superpuesta -->
 			<div class="portada-perfil">
 				<img id="bannerPerfil" alt="Banner del perfil">
+			</div>
 
+			<div class="fila-perfil">
+				<img id="fotoPerfil" alt="Foto de perfil">
+				<h1 id="nombreUsuario">Mi perfil</h1>
+			</div>
+
+			<p id="biografiaTexto" class="biografia"></p>
 				<div class="datos-perfil">
 					<img id="fotoPerfil" alt="Foto de perfil">
 					<h1 id="nombreUsuario">Mi perfil</h1>
 				</div>
 			</div>
 
-			<!-- Opciones para cambiar las imágenes -->
-			<div class="editar-imagenes">
-				<div>
-					<input type="file" id="archivoBanner" accept="image/*" hidden>
-					<button type="button" id="subirBanner">Cambiar banner</button>
-				</div>
-
-				<div>
-					<input type="file" id="archivoFoto" accept="image/*" hidden>
-					<button type="button" id="subirFoto">Cambiar foto</button>
-				</div>
-			</div>
-
-			<hr style="margin: 25px 0;">
-
-			<label for="biografia">Biografía</label>
-			<textarea id="biografia" maxlength="500"
-				placeholder="Preséntate ante otros usuarios..."></textarea>
-			<div id="contadorBio" class="contador">0 / 500</div>
-
-			<button id="guardarBio">Guardar biografía</button>
-		</section>
 
 		<!-- ACTIVIDAD RECIENTE (H4.5) -->
 		<section class="tarjeta">
@@ -208,6 +239,23 @@ main textarea { height: 110px; resize: vertical; }
 				<p class="vacio">Cargando actividades...</p>
 			</div>
 		</section>
+		
+				<!-- PROGRESO (H1.8) -->
+		<section class="tarjeta" id="tarjetaProgreso" hidden>
+			<h2>Mi progreso</h2>
+			<div id="listaProgreso"></div>
+		</section>
+		
+		<!-- DIARIO: calendario de obras completadas -->
+		<details class="tarjeta" id="diario">
+			<summary>Diario</summary>
+			<div class="cab-calendario">
+				<button type="button" id="mesAnterior" class="secundario" aria-label="Mes anterior">←</button>
+				<h2 id="tituloMes"></h2>
+				<button type="button" id="mesSiguiente" class="secundario" aria-label="Mes siguiente">→</button>
+			</div>
+			<div id="calendario" class="calendario"></div>
+		</details>
 
 		<!-- FAVORITOS (H4.1) -->
 		<section class="tarjeta">
@@ -246,8 +294,6 @@ main textarea { height: 110px; resize: vertical; }
         { valor: "SERIE",      nombre: "Series" },
         { valor: "VIDEOJUEGO", nombre: "Videojuegos" }
     ];
-
-    const MAX_BIO = 500;
 
     let favoritos = [];
     let todasObras = [];
@@ -330,112 +376,27 @@ main textarea { height: 110px; resize: vertical; }
         return b;
     }
 
-    // ---------- Foto de perfil y banner ----------
+	// ---------- Perfil ----------
 
-    async function subirImagen(tipo, inputId, imagenId) {
-        const archivo = document.getElementById(inputId).files[0];
+	async function cargarPerfil() {
+	    const perfil = await api("/api/perfil");
 
-        if (!archivo) {
-            mostrar("Selecciona una imagen primero.", false);
-            return;
-        }
+	    document.getElementById("nombreUsuario").textContent = perfil.nombre;
+	    document.getElementById("biografiaTexto").textContent =
+	        perfil.biografia || "Todavía no has escrito una biografía.";
 
-        if (!archivo.type.startsWith("image/")) {
-            mostrar("El archivo debe ser una imagen.", false);
-            return;
-        }
+	    const foto = document.getElementById("fotoPerfil");
+	    if (perfil.fotoPerfilUrl) {
+	        foto.src = perfil.fotoPerfilUrl;
+	        foto.style.display = "block";
+	    }
 
-        const datos = new FormData();
-        datos.append("archivo", archivo);
-
-        await accion(async function () {
-            const resultado = await api("/api/perfil/" + tipo, {
-                method: "POST",
-                body: datos
-            });
-
-            const imagen = document.getElementById(imagenId);
-            imagen.src = resultado.url;
-            imagen.style.display = "block";
-
-            document.getElementById(inputId).value = "";
-        }, "Imagen actualizada correctamente.");
-    }
-
-    document.getElementById("subirFoto")
-        .addEventListener("click", function () {
-            document.getElementById("archivoFoto").click();
-        });
-
-    document.getElementById("subirBanner")
-        .addEventListener("click", function () {
-            document.getElementById("archivoBanner").click();
-        });
-
-    document.getElementById("archivoFoto")
-        .addEventListener("change", function () {
-            if (this.files.length > 0) {
-                subirImagen("foto", "archivoFoto", "fotoPerfil");
-            }
-        });
-
-    document.getElementById("archivoBanner")
-        .addEventListener("change", function () {
-            if (this.files.length > 0) {
-                subirImagen("banner", "archivoBanner", "bannerPerfil");
-            }
-        });
-
-    // ---------- Perfil y biografía ----------
-
-    const biografia = document.getElementById("biografia");
-    const contadorBio = document.getElementById("contadorBio");
-
-    function actualizarContador() {
-        const n = biografia.value.length;
-        contadorBio.textContent = n + " / " + MAX_BIO;
-        contadorBio.className = n > MAX_BIO ? "contador excedido" : "contador";
-    }
-
-    biografia.addEventListener("input", actualizarContador);
-
-    async function cargarPerfil() {
-        const perfil = await api("/api/perfil");
-
-        document.getElementById("nombreUsuario").textContent = perfil.nombre;
-        biografia.value = perfil.biografia || "";
-        actualizarContador();
-
-        const foto = document.getElementById("fotoPerfil");
-        if (perfil.fotoPerfilUrl) {
-            foto.src = perfil.fotoPerfilUrl;
-            foto.style.display = "block";
-        }
-
-        const banner = document.getElementById("bannerPerfil");
-        if (perfil.bannerUrl) {
-            banner.src = perfil.bannerUrl;
-            banner.style.display = "block";
-        }
-    }
-
-    document.getElementById("guardarBio")
-        .addEventListener("click", function () {
-
-        if (biografia.value.length > MAX_BIO) {
-            mostrar("La biografía no puede superar los 500 caracteres.", false);
-            return;
-        }
-
-        accion(async function () {
-            const perfil = await api("/api/perfil/biografia",
-                jsonPost({ biografia: biografia.value }, "PUT"));
-
-            biografia.value = perfil.biografia || "";
-            actualizarContador();
-        }, "Biografía guardada correctamente.");
-    });
-
+	    const banner = document.getElementById("bannerPerfil");
+	    if (perfil.bannerUrl) {
+	        banner.src = perfil.bannerUrl;
+	        banner.style.display = "block";
+	    }
+	}
     // ---------- Actividad reciente (H4.5) ----------
 
     async function cargarActividad() {
@@ -475,6 +436,98 @@ main textarea { height: 110px; resize: vertical; }
             contenedor.appendChild(fila);
         });
     }
+	
+	// ---------- Progreso -----------
+	async function cargarProgreso() {
+		const r = await Shelfie.api("/api/progreso/en-curso");
+		if (!r.ok || !Array.isArray(r.datos) || r.datos.length === 0) { return; }
+
+		document.getElementById("tarjetaProgreso").hidden = false;
+		document.getElementById("listaProgreso").innerHTML = r.datos.map(p => {
+			const detalle = p.tipo === "LIBRO"
+				? p.paginasLeidas + " páginas leídas"
+				: "Temporada " + p.temporadaActual + " · Capítulo " + p.capituloActual;
+			return `<div class="lista-fila">
+				<span>${Shelfie.chipTipo(p.tipo)} <a href="/work.html?id=${p.obraId}">${Shelfie.esc(p.titulo)}</a></span>
+				<span>${Shelfie.esc(detalle)}</span>
+			</div>`;
+		}).join("");
+	}
+	cargarProgreso();
+	
+	// ---------- Calendario de obras completadas ----------
+
+	let calAnio = new Date().getFullYear();
+	let calMes = new Date().getMonth() + 1;   // 1-12
+
+	async function cargarCalendario() {
+	    const obras = await api("/api/estadisticas/calendario?anio=" + calAnio + "&mes=" + calMes);
+
+	    document.getElementById("tituloMes").textContent =
+	        new Date(calAnio, calMes - 1, 1)
+	            .toLocaleDateString("es-ES", { month: "long", year: "numeric" });
+
+	    // Agrupamos por día del mes: { 20: [obra, obra], ... }
+	    const porDia = {};
+	    obras.forEach(o => {
+	        const dia = Number(o.fecha.substring(8, 10));
+	        (porDia[dia] = porDia[dia] || []).push(o);
+	    });
+
+	    const cont = document.getElementById("calendario");
+	    cont.innerHTML = "";
+
+	    ["L", "M", "X", "J", "V", "S", "D"].forEach(d =>
+	        cont.appendChild(crear("div", d, "cal-semana")));
+
+	    // getDay() devuelve 0 para domingo; queremos que la semana empiece en lunes.
+	    const huecos = (new Date(calAnio, calMes - 1, 1).getDay() + 6) % 7;
+	    const diasMes = new Date(calAnio, calMes, 0).getDate();
+
+	    for (let i = 0; i < huecos; i++) {
+	        cont.appendChild(crear("div", undefined, "cal-dia fuera"));
+	    }
+
+	    const hoy = new Date();
+
+	    for (let d = 1; d <= diasMes; d++) {
+	        const celda = crear("div", undefined, "cal-dia");
+
+	        if (hoy.getFullYear() === calAnio && hoy.getMonth() + 1 === calMes && hoy.getDate() === d) {
+	            celda.classList.add("hoy");
+	        }
+
+	        celda.appendChild(crear("div", d, "num"));
+
+	        (porDia[d] || []).forEach(o => {
+	            const enlace = crear("a", o.titulo, "tipo-" + o.tipo.toLowerCase());
+	            enlace.href = "work.html?id=" + o.obraId;
+	            enlace.title = o.titulo;
+	            celda.appendChild(enlace);
+	        });
+
+	        cont.appendChild(celda);
+	    }
+	}
+
+	function cambiarMes(delta) {
+	    calMes += delta;
+	    if (calMes < 1)  { calMes = 12; calAnio--; }
+	    if (calMes > 12) { calMes = 1;  calAnio++; }
+	    accion(cargarCalendario);
+	}
+
+	document.getElementById("mesAnterior").addEventListener("click", () => cambiarMes(-1));
+	document.getElementById("mesSiguiente").addEventListener("click", () => cambiarMes(1));
+	
+	// El calendario se carga la primera vez que se despliega el Diario.
+	let diarioCargado = false;
+	document.getElementById("diario").addEventListener("toggle", function () {
+	    if (this.open && !diarioCargado) {
+	        diarioCargado = true;
+	        accion(cargarCalendario);
+	    }
+	});
 
     // ---------- Favoritos ----------
 
@@ -803,6 +856,7 @@ main textarea { height: 110px; resize: vertical; }
             todasObras = await api("/search");
             await cargarFavoritos();
             await cargarListas();
+			await cargarProgreso();
         } catch (error) {
             mostrar(error.message, false);
         }
