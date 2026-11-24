@@ -8,46 +8,74 @@
 <link rel="stylesheet" href="/css/shelfie.css">
 <script src="/js/shelfie.js"></script>
 <style>
-	.acciones-lista { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
-	.btn-sec.oscuro { color: var(--tinta); }
-	.btn-sec.oscuro:hover { background: var(--fondo); }
-	.lista-fila .titulo { flex: 1; min-width: 150px; font-weight: bold; }
-	.lista-fila a { text-decoration: none; }
-	.lista-fila a:hover { text-decoration: underline; }
-	.btn-peq { padding: 6px 12px; font-size: 0.85rem; }
+.acciones-lista {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin: 12px 0;
+}
+
+.btn-sec.oscuro {
+	color: var(--tinta);
+}
+
+.btn-sec.oscuro:hover {
+	background: var(--fondo);
+}
+
+.lista-fila .titulo {
+	flex: 1;
+	min-width: 150px;
+	font-weight: bold;
+}
+
+.lista-fila a {
+	text-decoration: none;
+}
+
+.lista-fila a:hover {
+	text-decoration: underline;
+}
+
+.btn-peq {
+	padding: 6px 12px;
+	font-size: 0.85rem;
+}
 </style>
 </head>
 <body>
 
-<div id="navbar"></div>
+	<div id="navbar"></div>
 
-<main class="contenedor">
-
-	<p><a href="/perfil.html">← Volver a mi perfil</a></p>
-
-	<p id="mensaje" class="msg" role="status" aria-live="polite"></p>
-
-	<section class="tarjeta">
-		<h1 id="nombreLista">Lista</h1>
-		<p id="creadorLista"></p>
-		<p id="descripcionLista"></p>
-
-		<div class="acciones-lista">
-			<button type="button" class="btn btn-sec oscuro" id="copiarEnlace">Copiar enlace</button>
-			<button type="button" class="btn" id="compartir">Compartir</button>
-		</div>
+	<main class="contenedor">
 
 		<p>
-			<span id="visibilidad" class="chip"></span>
-			<span id="contador"></span>
+			<a href="/perfil.html">← Volver a mi perfil</a>
 		</p>
 
-		<div id="obras"></div>
-	</section>
+		<p id="mensaje" class="msg" role="status" aria-live="polite"></p>
 
-</main>
+		<section class="tarjeta">
+			<h1 id="nombreLista">Lista</h1>
+			<p id="creadorLista"></p>
+			<p id="descripcionLista"></p>
 
-<script>
+			<div class="acciones-lista">
+				<button type="button" class="btn btn-sec oscuro" id="copiarEnlace">Copiar
+					enlace</button>
+				<button type="button" class="btn" id="compartir">Compartir</button>
+			</div>
+
+			<p>
+				<span id="visibilidad" class="chip"></span> <span id="contador"></span>
+			</p>
+
+			<div id="obras"></div>
+		</section>
+
+	</main>
+
+	<script>
 const $ = id => document.getElementById(id);
 const listaId = new URLSearchParams(window.location.search).get("id");
 let lista = null;
@@ -103,7 +131,18 @@ function pintar() {
 
 		const titulo = crear("span", undefined, "titulo");
 		const enlace = crear("a", obra.titulo);
-		enlace.href = "/work.html?id=" + obra.id;
+
+		if (
+		    obra.fuenteApi === "TMDB" &&
+		    obra.idExterno != null &&
+		    ["PELICULA", "SERIE"].includes(obra.tipo)
+		) {
+		    enlace.href = "/work.html?fuente=TMDB"
+		        + "&tipo=" + encodeURIComponent(obra.tipo)
+		        + "&idExterno=" + encodeURIComponent(obra.idExterno);
+		} else {
+		    enlace.href = "/work.html?id=" + encodeURIComponent(obra.id);
+		}
 		titulo.appendChild(enlace);
 		fila.appendChild(titulo);
 

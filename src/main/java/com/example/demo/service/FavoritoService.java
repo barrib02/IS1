@@ -179,7 +179,13 @@ public class FavoritoService {
 				continue;
 			}
 
-			respuesta.add(new FavoritoResponse(obra.getId(), obra.getTitulo(), f.getTipo().name(), f.getPosicion()));
+			FavoritoResponse dto = new FavoritoResponse(obra.getId(), obra.getTitulo(), f.getTipo().name(),
+					f.getPosicion());
+
+			dto.setFuenteApi(obra.getFuenteApi());
+			dto.setIdExterno(obra.getIdExterno());
+
+			respuesta.add(dto);
 		}
 
 		return respuesta;

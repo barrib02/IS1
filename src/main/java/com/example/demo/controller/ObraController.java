@@ -27,31 +27,50 @@ import com.example.demo.entity.EstadoValidacion;
 import com.example.demo.entity.Obra;
 import com.example.demo.entity.TipoObra;
 import com.example.demo.service.ObraService;
+import com.example.demo.service.BusquedaUnificadaService;
 
 @RestController
 public class ObraController {
 
 	private final ObraService obraService;
+	// Servicio que combina los resultados de Neon y TMDB.
+	private final BusquedaUnificadaService busquedaUnificadaService;
 
-	// Ahora toda la lógica vive en ObraService; el controlador solo recibe y responde.
-	public ObraController(ObraService obraService) {
+	// Ahora toda la lógica vive en ObraService; el controlador solo recibe y
+	// responde.
+	public ObraController(ObraService obraService, BusquedaUnificadaService busquedaUnificadaService) {
+
 		this.obraService = obraService;
+		this.busquedaUnificadaService = busquedaUnificadaService;
 	}
 
-	// Convierte una obra en un DTO ligero (id, título, tipo).
+	// Convierte una obra de Neon en un resultado de búsqueda.
 	private SearchResultDTO aDTO(Obra obra) {
-		return new SearchResultDTO(obra.getId(), obra.getTitulo(), obra.getTipo() == null ? "" : obra.getTipo().name());
+
+		// Conservamos los datos que ya utilizaba el buscador.
+		SearchResultDTO resultado = new SearchResultDTO(obra.getId(), obra.getTitulo(),
+				obra.getTipo() == null ? "" : obra.getTipo().name());
+
+		// Añadimos la referencia externa si existe.
+		resultado.setFuenteApi(obra.getFuenteApi());
+		resultado.setIdExterno(obra.getIdExterno());
+
+		// Añadimos la imagen si está almacenada en Neon.
+		resultado.setImagenUrl(obra.getImagenUrl());
+
+		return resultado;
 	}
 
 	// =====================================================================
 	// BÚSQUEDA Y FICHA (sin cambios)
 	// =====================================================================
 
+	// Busca obras tanto en Neon como en las APIs externas disponibles.
 	@GetMapping("/search")
 	public List<SearchResultDTO> buscar(@RequestParam(required = false) String titulo,
 			@RequestParam(required = false) TipoObra tipo) {
 
-		return obraService.buscar(titulo, tipo).stream().map(this::aDTO).collect(Collectors.toList());
+		return busquedaUnificadaService.buscar(titulo, tipo);
 	}
 
 	@GetMapping("/explorar")
@@ -72,7 +91,14 @@ public class ObraController {
 
 	@GetMapping("/sugerencias")
 	public List<SearchResultDTO> obtenerSugerencias(@RequestParam String texto) {
-		return obraService.obtenerSugerencias(texto).stream().map(this::aDTO).collect(Collectors.toList());
+
+		// No buscamos si el usuario ha escrito menos de 2 caracteres.
+		if (texto == null || texto.trim().length() < 2) {
+			return List.of();
+		}
+
+		// Recuperamos sugerencias de Neon y de las APIs externas.
+		return busquedaUnificadaService.buscar(texto.trim(), null).stream().limit(8).collect(Collectors.toList());
 	}
 
 	@PutMapping("/work/{id}/estado")
@@ -97,7 +123,8 @@ public class ObraController {
 		return obraService.crear(auth.getName(), request);
 	}
 
-	// Editar una obra: solo su autor o un moderador. Si edita el autor, vuelve a PENDIENTE.
+	// Editar una obra: solo su autor o un moderador. Si edita el autor, vuelve a
+	// PENDIENTE.
 	@PutMapping("/api/obras/{id}")
 	public Obra editarObra(@PathVariable Long id, @RequestBody ObraRequest request, Authentication auth) {
 		return obraService.editar(auth.getName(), id, request);
@@ -109,7 +136,8 @@ public class ObraController {
 		return obraService.misObras(auth.getName());
 	}
 
-	// Estado de validación + justificación (ahora devuelve JSON, no solo el texto del estado).
+	// Estado de validación + justificación (ahora devuelve JSON, no solo el texto
+	// del estado).
 	@GetMapping("/api/obras/{id}/validacion")
 	public ValidacionResponse validacion(@PathVariable Long id, Authentication auth) {
 		return obraService.consultarValidacion(auth.getName(), id);
@@ -122,8 +150,8 @@ public class ObraController {
 	// Obras por estado. Sustituye al antiguo /api/obras/pendientes.
 	// Ejemplo: GET /api/obras/moderacion?estado=PENDIENTE (por defecto)
 	@GetMapping("/api/obras/moderacion")
-	public List<ObraEnvioResponse> obrasParaModerar(
-			@RequestParam(defaultValue = "PENDIENTE") EstadoValidacion estado, Authentication auth) {
+	public List<ObraEnvioResponse> obrasParaModerar(@RequestParam(defaultValue = "PENDIENTE") EstadoValidacion estado,
+			Authentication auth) {
 
 		return obraService.listarParaModerar(auth.getName(), estado);
 	}

@@ -44,10 +44,11 @@ public interface ObraRepository extends JpaRepository<Obra, Long> {
 	// Las 12 obras más recientes, para mostrar contenido antes de buscar.
 	List<Obra> findTop12ByOrderByIdDesc();
 
-	// Obra + géneros en UNA sola consulta (antes eran 2: la obra y luego sus géneros).
+	// Obra + géneros en UNA sola consulta (antes eran 2: la obra y luego sus
+	// géneros).
 	@Query("select o from Obra o left join fetch o.generos where o.id = :id")
 	Optional<Obra> findConGenerosById(@Param("id") Long id);
-	
+
 	// Obras que tengan CUALQUIERA de los géneros indicados (más recientes primero).
 	@Query("select o from Obra o where o.id in "
 			+ "(select x.id from Obra x join x.generos g where g in :generos) order by o.id desc")
@@ -56,17 +57,38 @@ public interface ObraRepository extends JpaRepository<Obra, Long> {
 	// Lo mismo, pero limitado a un tipo (libro, película…).
 	@Query("select o from Obra o where o.tipo = :tipo and o.id in "
 			+ "(select x.id from Obra x join x.generos g where g in :generos) order by o.id desc")
-	List<Obra> buscarPorGenerosYTipo(@Param("generos") Collection<GeneroObra> generos,
-			@Param("tipo") TipoObra tipo, Pageable pageable);
-	
+	List<Obra> buscarPorGenerosYTipo(@Param("generos") Collection<GeneroObra> generos, @Param("tipo") TipoObra tipo,
+			Pageable pageable);
+
 	// Obras enviadas por un usuario (Mis obras).
 	List<Obra> findByAutorIdOrderByIdDesc(Long autorId);
 
 	// Obras por estado de validación (panel de moderación).
 	List<Obra> findByEstadoValidacionOrderByIdAsc(EstadoValidacion estado);
-	
+
 	@Modifying
 	@Query("update Obra o set o.autorId = null where o.autorId = :usuarioId")
 	void desvincularAutor(@Param("usuarioId") Long usuarioId);
 
+	// Busca una obra externa utilizando su API de origen,
+	// su identificador original y su tipo.
+	//
+	// Ejemplo:
+	// fuenteApi = "TMDB"
+	// idExterno = "671"
+	// tipo = TipoObra.PELICULA
+	//
+	// Si la obra ya existe en Neon, devuelve su registro.
+	// Si todavía no existe, devuelve Optional.empty().
+	Optional<Obra> findByFuenteApiAndIdExternoAndTipo(String fuenteApi, String idExterno, TipoObra tipo);
+
+	// Obtiene las obras que tienen al menos una reseña en Shelfie.
+	@Query("select o from Obra o where " + "(:tipo is null or o.tipo = :tipo) "
+			+ "and o.id in (select r.obraId from Resena r) " + "and o.validada = true " + "order by o.id desc")
+	List<Obra> buscarObrasConResenas(@Param("tipo") TipoObra tipo, Pageable pageable); // Obtiene las obras manuales que
+																						// han sido validadas.
+
+	@Query("select o from Obra o where " + "o.fuenteApi is null " + "and o.validada = true "
+			+ "and (:tipo is null or o.tipo = :tipo) " + "order by o.id desc")
+	List<Obra> buscarObrasOriginalesValidadas(@Param("tipo") TipoObra tipo, Pageable pageable);
 }

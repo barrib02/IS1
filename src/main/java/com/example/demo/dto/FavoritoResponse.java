@@ -2,32 +2,50 @@ package com.example.demo.dto;
 
 public class FavoritoResponse {
 
-    private Long obraId;
-    private String titulo;
-    private String tipo;
-    private Integer posicion;
+	private Long obraId;
+	private String titulo;
+	private String tipo;
+	private Integer posicion;
+	private String fuenteApi;
 
-    public FavoritoResponse(Long obraId, String titulo,
-                            String tipo, Integer posicion) {
-        this.obraId = obraId;
-        this.titulo = titulo;
-        this.tipo = tipo;
-        this.posicion = posicion;
-    }
+	private String idExterno;
 
-    public Long getObraId() {
-        return obraId;
-    }
+	public FavoritoResponse(Long obraId, String titulo, String tipo, Integer posicion) {
+		this.obraId = obraId;
+		this.titulo = titulo;
+		this.tipo = tipo;
+		this.posicion = posicion;
+	}
 
-    public String getTitulo() {
-        return titulo;
-    }
+	public Long getObraId() {
+		return obraId;
+	}
 
-    public String getTipo() {
-        return tipo;
-    }
+	public String getTitulo() {
+		return titulo;
+	}
 
-    public Integer getPosicion() {
-        return posicion;
-    }
+	public String getTipo() {
+		return tipo;
+	}
+
+	public Integer getPosicion() {
+		return posicion;
+	}
+
+	public String getFuenteApi() {
+		return fuenteApi;
+	}
+
+	public void setFuenteApi(String fuenteApi) {
+		this.fuenteApi = fuenteApi;
+	}
+
+	public String getIdExterno() {
+		return idExterno;
+	}
+
+	public void setIdExterno(String idExterno) {
+		this.idExterno = idExterno;
+	}
 }

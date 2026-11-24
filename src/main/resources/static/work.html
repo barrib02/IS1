@@ -1,5 +1,7 @@
+
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,434 +9,1544 @@
 <link rel="icon" href="/images/logo.svg">
 <link rel="stylesheet" href="/css/shelfie.css">
 <script src="/js/shelfie.js"></script>
+
+<style>
+/* Ficha externa de películas y series de TMDB */
+.ficha-tmdb-contenido {
+	display: grid;
+	grid-template-columns: 200px minmax(0, 1fr);
+	gap: 28px;
+	align-items: start;
+	margin-top: 24px;
+}
+
+.ficha-tmdb-poster {
+	display: block;
+	width: 100%;
+	max-width: 200px;
+	height: auto;
+	border-radius: 8px;
+}
+
+.ficha-tmdb-datos {
+	min-width: 0;
+}
+
+.ficha-tmdb-datos p {
+	line-height: 1.6;
+}
+
+@media ( max-width : 520px) {
+	.ficha-tmdb-contenido {
+		grid-template-columns: 1fr;
+	}
+}
+</style>
 </head>
+
 <body>
 
-<div id="navbar"></div>
-
-<main class="contenedor">
-	<!-- Aquí se pinta la ficha (título, creador, tipo, géneros, descripción, mi experiencia) -->
-	<div id="contenido"></div>
-
-	<!-- Favoritos y listas (solo con sesión) -->
-	<section id="acciones" class="tarjeta" hidden></section>
-</main>
-
-<script>
-const $ = id => document.getElementById(id);
-const obraId = Number(new URLSearchParams(window.location.search).get("id"));
-const JSON_HEADERS = { "Content-Type": "application/json" };
-
-let usuarioId = null;      // id del usuario con sesión
-let valoracionId = null;   // id de mi valoración (si ya existe) para hacer PUT en vez de POST
-let resenaId = null;       // id de mi reseña (si ya existe)
-let estrellas = null;      // control de estrellas
-let tipoObra = null;       // LIBRO, SERIE...
-
-// Crea un elemento con texto seguro (sin innerHTML).
-function crear(etiqueta, texto, clase) {
-	const el = document.createElement(etiqueta);
-	if (texto !== undefined) { el.textContent = texto; }
-	if (clase) { el.className = clase; }
-	return el;
-}
-
-// Mensaje bajo el formulario de "Mi experiencia".
-function mostrar(texto, correcto, id) {
-	const msg = $(id || "msg");
-	msg.textContent = texto;
-	msg.className = "msg " + (correcto ? "ok" : "error");
-}
-
-// Si el servidor devolvió un texto de error lo usamos; si no, uno genérico.
-function textoError(r, defecto) {
-	return typeof r.datos === "string" && r.datos ? r.datos : defecto;
-}
-
-// ======================================================
-// 1) Arranque: la obra y el perfil se piden A LA VEZ
-// ======================================================
-async function iniciar() {
-	if (!Number.isInteger(obraId) || obraId < 1) {
-		$("contenido").innerHTML = '<div class="tarjeta"><h2>Falta la obra</h2><p>Entra desde el buscador o con <code>/work.html?id=1</code>.</p></div>';
-		return;
-	}
-
-	const [respuestaObra, perfil] = await Promise.all([
-		Shelfie.api("/work/" + obraId),
-		Shelfie.obtenerPerfil()          // la navbar reutiliza esta misma petición
-	]);
-
-	if (!respuestaObra.ok) {
-		$("contenido").innerHTML = '<div class="tarjeta"><h2>Obra no encontrada</h2><p>No existe ninguna obra con el ID ' +
-			Shelfie.esc(obraId) + '. <a href="/search.html">Volver al buscador</a></p></div>';
-		return;
-	}
-
-	pintarObra(respuestaObra.datos);
-
-	// Sin sesión la ficha es pública, pero no se puede interactuar.
-	if (!perfil) {
-		$("experiencia").innerHTML = '<p>Inicia sesión para valorar, reseñar y guardar esta obra. ' +
-			'<a href="/login.html">Iniciar sesión</a></p>';
-		return;
-	}
-
-	usuarioId = perfil.id;
-	prepararExperiencia();
-
-	// Estado, valoración, reseña, favoritos y listas: 5 peticiones en paralelo.
-	await Promise.all([cargarInteracciones(), pintarAcciones(), cargarProgreso()]);
-}
-
-// ======================================================
-// 2) Ficha de la obra
-// ======================================================
-function pintarObra(obra) {
-	tipoObra = obra.tipo;
-	document.title = obra.titulo + " - Shelfie";
-
-	const creador = obra.creador
-		? `<a href="/creador.html?id=${obra.creador.id}">${Shelfie.esc(obra.creador.nombre)}</a>`
-		: Shelfie.esc(obra.autor || "Desconocido");
-
-	// Géneros como etiquetas (el backend ya los envía en obra.generos).
-	const generos = (obra.generos && obra.generos.length)
-		? obra.generos.map(g => `<span class="chip genero">${Shelfie.esc(Shelfie.formatearEnum(g))}</span>`).join("")
-		: '<span class="vacio">Sin géneros indicados</span>';
-
-	$("contenido").innerHTML = `
-		<article class="tarjeta">
-			<div class="titulo-fila">
-				<h1>${Shelfie.esc(obra.titulo)}</h1>
-				<span id="zona-fav"></span>
-			</div>
-			<p><b>Creador:</b> ${creador}</p>
-			<p><b>Tipo:</b> ${Shelfie.chipTipo(obra.tipo)}
-				${obra.anio ? " · <b>Año:</b> " + Shelfie.esc(obra.anio) : ""}</p>
-			<div><b>Géneros:</b><div style="margin-top:6px">${generos}</div></div>
-			<p>${Shelfie.esc(obra.descripcion || "")}</p>
-
-			<section id="experiencia" style="margin-top:24px;padding-top:20px;border-top:1px solid var(--borde)">
-				<h3>Mi experiencia</h3>
-
-				<div class="grupo">
-					<label for="estado">Estado</label>
-					<select id="estado">
-						<option value="">Selecciona un estado…</option>
-						<option value="PENDIENTE">Pendiente</option>
-						<option value="EN_CURSO">En curso</option>
-						<option value="COMPLETADA">Completada</option>
-						<option value="ABANDONADA">Abandonada</option>
-					</select>
-					<div class="grupo" id="grupoFecha" hidden>
-						<label for="fechaCompletada">Fecha en la que la completaste</label>
-						<input type="date" id="fechaCompletada" style="max-width:220px">
-					</div>
-				</div>
-				
-				<div class="grupo" id="progreso" hidden>
-					<span class="etiqueta">Mi progreso</span>
-
-					<div id="progreso-libro" hidden>
-						<label for="paginas">Páginas leídas</label>
-						<input type="number" id="paginas" min="0">
-					</div>
-
-					<div id="progreso-serie" hidden>
-						<label for="temporada">Temporada actual</label>
-						<input type="number" id="temporada" min="1">
-						<label for="capitulo" style="margin-top:8px">Capítulo actual</label>
-						<input type="number" id="capitulo" min="1">
-					</div>
-
-					<button type="button" class="btn" id="guardarProgreso" style="margin-top:8px">Guardar progreso</button>
-					<p id="msgProgreso" class="msg" role="status"></p>
-				</div>
-
-				<div class="grupo">
-					<span class="etiqueta">Mi valoración</span>
-					<div id="estrellas"></div>
-				</div>
-
-				<div class="grupo">
-					<label for="resena">Reseña</label>
-					<textarea id="resena" placeholder="Escribe tu opinión sobre la obra…"></textarea>
-					<small id="contador">0 / 200 palabras</small>
-				</div>
-
-				<button type="button" class="btn" id="guardar">Guardar valoración y reseña</button>
-				<p id="msg" class="msg" role="status"></p>
-			</section>
-		</article>`;
-}
-
-// Conecta los controles de "Mi experiencia".
-function prepararExperiencia() {
-	estrellas = Shelfie.estrellas($("estrellas"), {});
-
-	$("estado").addEventListener("change", guardarEstado);
-	$("guardar").addEventListener("click", guardarValoracionYResena);
-	$("resena").addEventListener("input", contarPalabras);
-	if (tipoObra === "LIBRO") { $("progreso").hidden = false; $("progreso-libro").hidden = false; }
-	if (tipoObra === "SERIE") { $("progreso").hidden = false; $("progreso-serie").hidden = false; }
-	$("guardarProgreso").addEventListener("click", guardarProgreso);
-	$("fechaCompletada").max = hoyISO();                          // no se pueden elegir fechas futuras
-	$("fechaCompletada").addEventListener("change", guardarEstado); // cambiar la fecha la guarda
-}
-
-function contarPalabras() {
-	const texto = $("resena").value.trim();
-	const palabras = texto === "" ? 0 : texto.split(/\s+/).length;
-	$("contador").textContent = palabras + " / 200 palabras";
-	$("contador").style.color = palabras > 200 ? "var(--error)" : "inherit";
-	return palabras;
-}
-
-// ======================================================
-// 3) Cargar y guardar mi estado, valoración y reseña
-// ======================================================
-async function cargarInteracciones() {
-	const [est, val, res] = await Promise.all([
-		Shelfie.api(`/users/${usuarioId}/works/${obraId}/estado`),
-		Shelfie.api(`/api/valoraciones/obra/${obraId}/usuario/${usuarioId}`),
-		Shelfie.api(`/api/resenas/obra/${obraId}/usuario/${usuarioId}`)
-	]);
-
-	if (est.ok && est.datos) { $("estado").value = est.datos; }
-		actualizarGrupoFecha();
-
-	if (val.ok && val.datos) {
-		valoracionId = val.datos.id;
-		estrellas.set(val.datos.puntuacion);
-	}
-
-	if (res.ok && res.datos) {
-		resenaId = res.datos.id;
-		$("resena").value = res.datos.texto;
-		contarPalabras();
-	}
-}
-
-async function guardarEstado() {
-	const estado = $("estado").value;
-	if (!estado) { return; }
-
-	actualizarGrupoFecha();
-
-	let url = `/users/${usuarioId}/works/${obraId}/estado?estado=${encodeURIComponent(estado)}`;
-	if (estado === "COMPLETADA" && $("fechaCompletada").value) {
-		url += "&fecha=" + encodeURIComponent($("fechaCompletada").value);
-	}
-
-	const r = await Shelfie.api(url, { method: "PUT" });
-
-	r.ok ? mostrar("Estado actualizado.", true)
-		: mostrar(textoError(r, "No se ha podido cambiar el estado."), false);
-}
-
-// Fecha de hoy en formato yyyy-MM-dd, en hora local (toISOString usaría UTC).
-function hoyISO() {
-	const d = new Date();
-	return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-}
-
-// Muestra el selector de fecha solo cuando el estado es "Completada".
-function actualizarGrupoFecha() {
-	const completada = $("estado").value === "COMPLETADA";
-	$("grupoFecha").hidden = !completada;
-	if (completada && !$("fechaCompletada").value) { $("fechaCompletada").value = hoyISO(); }
-}
-
-async function guardarValoracionYResena() {
-	const puntuacion = estrellas.get();
-	const texto = $("resena").value.trim();
-
-	if (contarPalabras() > 200) {
-		mostrar("La reseña no puede superar las 200 palabras.", false);
-		return;
-	}
-
-	$("guardar").disabled = true;
-
-	try {
-		// Valoración: POST si es nueva, PUT si ya existía (así no se duplica).
-		if (puntuacion > 0 || valoracionId !== null) {
-			const r = valoracionId === null
-				? await Shelfie.api("/api/valoraciones", {
-					method: "POST", headers: JSON_HEADERS,
-					body: JSON.stringify({ usuarioId, obraId, puntuacion })
-				})
-				: await Shelfie.api("/api/valoraciones/" + valoracionId, {
-					method: "PUT", headers: JSON_HEADERS,
-					body: JSON.stringify({ puntuacion })
-				});
-
-			if (!r.ok) { throw new Error(textoError(r, "No se han podido guardar las estrellas.")); }
-			valoracionId = r.datos.id;
-		}
-
-		// Reseña: igual, POST si es nueva y PUT si ya existía.
-		if (texto) {
-			const r = resenaId === null
-				? await Shelfie.api("/api/resenas", {
-					method: "POST", headers: JSON_HEADERS,
-					body: JSON.stringify({ usuarioId, obraId, valoracionId, texto })
-				})
-				: await Shelfie.api("/api/resenas/" + resenaId, {
-					method: "PUT", headers: JSON_HEADERS,
-					body: JSON.stringify({ texto })
-				});
-
-			if (!r.ok) { throw new Error(textoError(r, "Las estrellas se guardaron, pero la reseña no.")); }
-			resenaId = r.datos.id;
-		}
-
-		mostrar("Guardado correctamente.", true);
-	} catch (error) {
-		mostrar(error.message, false);
-	} finally {
-		$("guardar").disabled = false;
-	}
-}
-
-async function cargarProgreso() {
-	const r = await Shelfie.api("/api/progreso/obra/" + obraId);
-	if (!r.ok || !r.datos) { return; }
-
-	if (tipoObra === "LIBRO" || tipoObra === "SERIE") {
-		if (r.datos.paginasLeidas != null) { $("paginas").value = r.datos.paginasLeidas; }
-		if (r.datos.temporadaActual != null) { $("temporada").value = r.datos.temporadaActual; }
-		if (r.datos.capituloActual != null) { $("capitulo").value = r.datos.capituloActual; }
-	}
-	if (r.datos.fechaCompletada) { $("fechaCompletada").value = r.datos.fechaCompletada; }
-	actualizarGrupoFecha();
-}
-
-async function guardarProgreso() {
-	const num = id => $(id).value === "" ? null : Number($(id).value);
-	const cuerpo = tipoObra === "LIBRO"
-		? { paginasLeidas: num("paginas") }
-		: { temporadaActual: num("temporada"), capituloActual: num("capitulo") };
-
-	const r = await Shelfie.api("/api/progreso/obra/" + obraId,
-		{ method: "PUT", headers: JSON_HEADERS, body: JSON.stringify(cuerpo) });
-
-	if (r.ok) {
-				if (r.datos.estado) { $("estado").value = r.datos.estado; actualizarGrupoFecha(); }
-		mostrar("Progreso guardado.", true, "msgProgreso");
-	} else {
-		mostrar(textoError(r, "No se ha podido guardar el progreso."), false, "msgProgreso");
-	}
-}
-
-// ======================================================
-// 4) Favoritos y listas
-// ======================================================
-async function pintarAcciones() {
-	const [fav, listas] = await Promise.all([
-		Shelfie.api("/api/favoritos"),
-		Shelfie.api("/api/listas/obra/" + obraId)
-	]);
-
-	const caja = $("acciones");
-	caja.hidden = false;
-	caja.innerHTML = "";
-
-	const mensaje = crear("p", "", "msg");
-	mensaje.setAttribute("role", "status");
-
-	function aviso(texto, correcto) {
-		mensaje.textContent = texto;
-		mensaje.className = "msg " + (correcto ? "ok" : "error");
-	}
-
-	// ----- Favorito: corazón junto al título -----
-	let esFavorita = Array.isArray(fav.datos) && fav.datos.some(f => f.obraId === obraId);
-
-	const botonFav = document.createElement("button");
-	botonFav.type = "button";
-	botonFav.className = "btn-icono";
-	botonFav.innerHTML =
-		'<svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
-		'<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>';
-
-	// Cambia color/relleno y el texto accesible según el estado.
-	function pintarFav() {
-		botonFav.classList.toggle("activo", esFavorita);
-		botonFav.setAttribute("aria-pressed", String(esFavorita));
-		const texto = esFavorita ? "Quitar de favoritos" : "Fijar como favorita";
-		botonFav.title = texto;
-		botonFav.setAttribute("aria-label", texto);
-	}
-	pintarFav();
-
-	botonFav.addEventListener("click", async () => {
-		const r = await Shelfie.api("/api/favoritos/" + obraId, { method: esFavorita ? "DELETE" : "POST" });
-		if (r.ok) {
-			esFavorita = !esFavorita;
-			pintarFav();
-			aviso(esFavorita ? "Obra fijada como favorita." : "Obra quitada de favoritos.", true);
-		} else {
-			aviso(textoError(r, "No se ha podido completar la acción."), false);
-		}
-	});
-	$("zona-fav").appendChild(botonFav);
-
-	// ----- Listas: botón "+" que pasa a "✓" verde -----
-	caja.appendChild(crear("h3", "Guardar en mis listas"));
-
-	if (!listas.ok || !Array.isArray(listas.datos) || listas.datos.length === 0) {
-		const vacio = crear("p", "Todavía no tienes listas. ", "vacio");
-		const enlace = crear("a", "Créalas en tu perfil");
-		enlace.href = "/perfil.html";
-		vacio.appendChild(enlace);
-		caja.appendChild(vacio);
-	} else {
-		listas.datos.forEach(lista => {
-			let dentro = lista.contieneObra;
-
-			const fila = crear("div", undefined, "lista-fila");
-			fila.appendChild(crear("span", lista.nombre));
-
-			const boton = crear("button", "", "btn-mas");
-			boton.type = "button";
-
-			function pintarBoton() {
-				boton.textContent = dentro ? "✓" : "+";
-				boton.classList.toggle("activo", dentro);
-				boton.setAttribute("aria-pressed", String(dentro));
-				boton.setAttribute("aria-label", (dentro ? "Quitar de " : "Añadir a ") + lista.nombre);
-			}
-			pintarBoton();
-
-			// Cada clic se guarda al momento (sin botón Guardar).
-			boton.addEventListener("click", async () => {
-				boton.disabled = true;
-				const r = await Shelfie.api("/api/listas/" + lista.id + "/obras/" + obraId,
-					{ method: dentro ? "DELETE" : "POST" });
-				boton.disabled = false;
-
-				if (r.ok) {
-					dentro = !dentro;
-					pintarBoton();
-					aviso(dentro ? `Añadida a "${lista.nombre}".` : `Quitada de "${lista.nombre}".`, true);
-				} else {
-					aviso(textoError(r, "No se ha podido guardar el cambio."), false);
-				}
-			});
-
-			fila.appendChild(boton);
-			caja.appendChild(fila);
-		});
-	}
-
-	caja.appendChild(mensaje);
-}
-
-
-iniciar();
-</script>
+	<div id="navbar"></div>
+
+	<main class="contenedor">
+		<!-- Ficha de la obra -->
+		<div id="contenido"></div>
+
+		<!-- Favoritos y listas, solo con sesión -->
+		<section id="acciones" class="tarjeta" hidden></section>
+	</main>
+
+	<script>
+        const $ = id => document.getElementById(id);
+
+
+
+        let obraId = null;
+
+        const idInicial = new URLSearchParams(
+            window.location.search
+        ).get("id");
+
+        if (idInicial !== null && /^[0-9]+$/.test(idInicial)) {
+            const idNumerico = Number(idInicial);
+
+            if (Number.isSafeInteger(idNumerico) && idNumerico > 0) {
+                obraId = idNumerico;
+            }
+        }
+
+        
+        console.log("URL actual:", window.location.href);
+        console.log("ID de la obra:", obraId);
+
+        const parametrosObra = new URLSearchParams(window.location.search);
+        const fuenteExterna = parametrosObra.get("fuente");
+        const tipoExterno = parametrosObra.get("tipo");
+        const idExterno = parametrosObra.get("idExterno");
+
+        const JSON_HEADERS = {
+            "Content-Type": "application/json"
+        };
+
+        let usuarioId = null;
+        let valoracionId = null;
+        let resenaId = null;
+        let estrellas = null;
+        let tipoObra = null;
+
+        // Crea un elemento con texto seguro.
+        function crear(etiqueta, texto, clase) {
+            const el = document.createElement(etiqueta);
+
+            if (texto !== undefined) {
+                el.textContent = texto;
+            }
+
+            if (clase) {
+                el.className = clase;
+            }
+
+            return el;
+        }
+
+        // Muestra mensajes bajo los formularios.
+        function mostrar(texto, correcto, id) {
+            const msg = $(id || "msg");
+            msg.textContent = texto;
+            msg.className = "msg " + (correcto ? "ok" : "error");
+        }
+
+        // Obtiene el mensaje de error del servidor.
+        function textoError(r, defecto) {
+            return typeof r.datos === "string" && r.datos
+                ? r.datos
+                : defecto;
+        }
+
+        // ======================================================
+        // 1) FICHA EXTERNA DE TMDB
+        // ======================================================
+
+        /**
+         * Consulta TMDB y muestra la ficha de una película o serie.
+         * No guarda automáticamente la obra en Neon.
+         */
+        async function cargarFichaTmdb() {
+
+            // Validamos la referencia externa.
+            if (
+                fuenteExterna !== "TMDB" ||
+                !["PELICULA", "SERIE"].includes(tipoExterno) ||
+                !/^[0-9]+$/.test(idExterno || "")
+            ) {
+                $("contenido").textContent =
+                    "La referencia de TMDB no es válida.";
+                return;
+            }
+
+            // Seleccionamos el endpoint correspondiente.
+            const ruta = tipoExterno === "PELICULA"
+                ? "/api/tmdb/pelicula/"
+                : "/api/tmdb/serie/";
+
+            const respuesta = await Shelfie.api(
+                ruta + encodeURIComponent(idExterno)
+            );
+
+            if (!respuesta.ok || !respuesta.datos) {
+                $("contenido").textContent =
+                    "No se ha podido cargar la información de TMDB.";
+                return;
+            }
+
+            const datos = respuesta.datos;
+
+            // Consultamos las plataformas disponibles en España.
+            const rutaPlataformas = tipoExterno === "PELICULA"
+                ? "/api/tmdb/pelicula/"
+                : "/api/tmdb/serie/";
+
+            const respuestaPlataformas = await Shelfie.api(
+                rutaPlataformas +
+                encodeURIComponent(idExterno) +
+                "/plataformas"
+            );
+
+            // Seleccionamos únicamente la disponibilidad española.
+            const disponibilidadES = respuestaPlataformas.ok
+                ? respuestaPlataformas.datos?.results?.ES
+                : null;
+
+            // Generamos las etiquetas de cada plataforma.
+            function pintarProveedores(proveedores) {
+                if (!Array.isArray(proveedores) || proveedores.length === 0) {
+                    return '<p class="vacio">Sin información disponible.</p>';
+                }
+
+                return proveedores.map(proveedor => `
+                    <span class="chip">
+                        ${Shelfie.esc(proveedor.provider_name)}
+                    </span>
+                `).join(" ");
+            }
+
+            const plataformasHTML = disponibilidadES
+                ? `
+                    <h3>Dónde ver en España</h3>
+
+                    <p><b>Suscripción:</b></p>
+                    <div>${pintarProveedores(disponibilidadES.flatrate)}</div>
+
+                    <p><b>Alquiler:</b></p>
+                    <div>${pintarProveedores(disponibilidadES.rent)}</div>
+
+                    <p><b>Compra:</b></p>
+                    <div>${pintarProveedores(disponibilidadES.buy)}</div>
+
+                    ${
+                        disponibilidadES.link
+                            ? `<p>
+                                <a href="${Shelfie.esc(disponibilidadES.link)}"
+                                   target="_blank"
+                                   rel="noopener noreferrer">
+                                    Consultar disponibilidad
+                                </a>
+                               </p>`
+                            : ""
+                    }
+                `
+                : `
+                    <h3>Dónde ver en España</h3>
+                    <p class="vacio">
+                        No hay información de plataformas disponible
+                        para España en TMDB.
+                    </p>
+                `;
+
+
+            // Adaptamos los datos recibidos de TMDB.
+            const obra = {
+                titulo: datos.title || datos.name || "Sin título",
+                tipo: tipoExterno,
+                autor: "No especificado",
+                anio: (
+                    datos.release_date ||
+                    datos.first_air_date ||
+                    ""
+                ).slice(0, 4),
+                descripcion:
+                    datos.overview || "Sin descripción disponible.",
+                generos: (datos.genres || []).map(g => g.name)
+            };
+
+            document.title = obra.titulo + " - Shelfie";
+
+            // Mostramos los géneros como etiquetas.
+            const generos = obra.generos.length
+                ? obra.generos.map(g =>
+                    `<span class="chip genero">${Shelfie.esc(g)}</span>`
+                ).join("")
+                : "Sin géneros indicados";
+
+            // Construimos el cartel de la película o serie.
+            const poster = datos.poster_path
+    ? `<img
+        src="https://image.tmdb.org/t/p/w342${encodeURI(datos.poster_path)}"
+        alt="Cartel de ${Shelfie.esc(obra.titulo)}"
+        class="ficha-tmdb-poster"
+       >`
+    : "";
+
+            // Cartel a la izquierda.
+            // Tipo, año, géneros y sinopsis a la derecha.
+            $("contenido").innerHTML = `
+                <article class="tarjeta">
+
+            	<div class="titulo-fila">
+                <h1>${Shelfie.esc(obra.titulo)}</h1>
+                <span id="zona-fav"></span>
+            </div>
+
+                    <div class="ficha-tmdb-contenido">
+
+                        <div>
+                            ${poster}
+                        </div>
+
+                        <div class="ficha-tmdb-datos">
+
+                            <p>
+                                <b>Tipo:</b>
+                                ${Shelfie.chipTipo(obra.tipo)}
+                            </p>
+
+                            <p>
+                                <b>Año:</b>
+                                ${Shelfie.esc(obra.anio || "Desconocido")}
+                            </p>
+
+                            <p>
+                                <b>Géneros:</b>
+                                ${generos}
+                            </p>
+
+                            <h3>Sinopsis</h3>
+
+                            <p>
+                                ${Shelfie.esc(obra.descripcion)}
+                            </p>
+
+                            <hr style="margin:24px 0;border:0;border-top:1px solid var(--borde)">
+
+                            ${plataformasHTML}
+
+ 
+                        </div>
+
+                    </div>
+
+                    <p class="msg" style="margin-top:20px">
+                        Información obtenida de TMDB.
+                    </p>
+
+                </article>
+
+                `;
+
+                // Mostramos las interacciones solo si hay sesión iniciada.
+                const perfil = await Shelfie.obtenerPerfil();
+
+                if (!perfil) {
+                    const aviso = document.createElement("p");
+                    aviso.innerHTML =
+                        'Inicia sesión para valorar, reseñar y guardar esta obra. ' +
+                        '<a href="/login.html">Iniciar sesión</a>';
+
+                    $("contenido").appendChild(aviso);
+                    return;
+                }
+
+
+                usuarioId = perfil.id;
+                tipoObra = tipoExterno;
+
+                // Mostramos el formulario de experiencia en TMDB.
+                $("contenido").appendChild(obtenerFormularioExperiencia());
+
+                prepararExperiencia();
+
+                // Comprobamos si la obra ya tiene una referencia en Neon.
+                try {
+                    const referenciaExistente = await consultarReferenciaTmdb();
+
+                    if (referenciaExistente !== null) {
+                        await Promise.all([
+                            cargarInteracciones(),
+                            cargarProgreso()
+                        ]);
+                    }
+
+                    // Mostramos favoritos y listas aunque la obra
+                    // todavía no tenga una referencia en Neon.
+                    await pintarAcciones();
+                } catch (error) {
+                    console.error("Error al consultar la referencia TMDB:", error);
+                    mostrar("No se han podido recuperar las interacciones existentes.", false);
+                }
+
+            }
+        
+
+        async function consultarReferenciaTmdb() {
+
+
+            // Consultamos referencias de TMDB y Google Books.
+            if (!["TMDB", "GOOGLE_BOOKS"].includes(fuenteExterna)) {
+                return null;
+            }
+
+
+            const parametros = new URLSearchParams({
+            	fuenteApi: fuenteExterna,
+                idExterno: idExterno,
+                tipo: tipoExterno
+            });
+
+            const respuesta = await Shelfie.api(
+                "/api/obras/externas?" + parametros.toString()
+            );
+
+            // Si todavía no existe, no creamos ninguna obra.
+            if (respuesta.status === 404) {
+                return null;
+            }
+
+            if (!respuesta.ok) {
+                throw new Error(
+                    "No se ha podido consultar la referencia de TMDB."
+                );
+            }
+
+            obraId = respuesta.datos.id;
+
+            return obraId;
+        }
+
+
+        
+
+        // Obtiene o crea la referencia de TMDB en Neon.
+        // Solo debe llamarse cuando el usuario guarda una interacción.
+        async function asegurarReferenciaTmdb() {
+
+
+            // Las obras internas ya tienen identificador de Neon.
+            // TMDB y Google Books utilizan referencias externas.
+            if (!["TMDB", "GOOGLE_BOOKS"].includes(fuenteExterna)) {
+                return obraId;
+            }
+
+            // Si ya hemos obtenido el ID, lo reutilizamos.
+            if (Number.isInteger(obraId) && obraId > 0) {
+                return obraId;
+            }
+
+            const titulo = document.querySelector(
+                "#contenido h1"
+            )?.textContent?.trim();
+
+            if (!titulo) {
+                throw new Error("No se ha podido identificar la obra.");
+            }
+
+            const respuesta = await Shelfie.api(
+                "/api/obras/externas",
+                {
+                    method: "POST",
+                    headers: JSON_HEADERS,
+                    body: JSON.stringify({
+                    	fuenteApi: fuenteExterna,
+                        idExterno: idExterno,
+                        tipo: tipoExterno,
+                        titulo: titulo
+                    })
+                }
+            );
+
+            if (
+                !respuesta.ok ||
+                !Number.isInteger(respuesta.datos?.id)
+            ) {
+                throw new Error(
+                    textoError(
+                        respuesta,
+                        "No se ha podido registrar la referencia de la obra."
+                    )
+                );
+            }
+
+            obraId = respuesta.datos.id;
+
+            return obraId;
+        }
+
+        async function cargarFichaGoogleBooks() {
+
+            // Comprobamos que el enlace contiene un libro válido.
+            if (tipoExterno !== "LIBRO" || !idExterno) {
+                $("contenido").textContent =
+                    "La referencia de Google Books no es válida.";
+                return;
+            }
+
+            $("contenido").textContent = "Cargando libro…";
+
+            try {
+                const respuesta = await Shelfie.api(
+                    "/api/googlebooks/libro/" + encodeURIComponent(idExterno)
+                );
+
+                if (!respuesta.ok || !respuesta.datos?.volumeInfo) {
+                    $("contenido").textContent =
+                        "No se ha podido cargar el libro.";
+                    return;
+                }
+
+                const datos = respuesta.datos;
+                const info = datos.volumeInfo;
+
+                const titulo = info.title || "Sin título";
+                const autor = (info.authors || []).join(", ") || "Desconocido";
+                const anio = (info.publishedDate || "").slice(0, 4);
+
+                // Google Books puede incluir etiquetas HTML y varios idiomas.
+                let descripcion = info.description || "Sin descripción disponible.";
+
+                // Conservamos únicamente la parte anterior a "ENGLISH DESCRIPTION".
+                if (info.language === "es") {
+                    descripcion = descripcion.split(
+                        /ENGLISH DESCRIPTION/i
+                    )[0];
+                }
+
+                // Convertimos el HTML de la API en texto legible.
+                const documento = new DOMParser().parseFromString(
+                    descripcion,
+                    "text/html"
+                );
+
+                descripcion = documento.body.textContent
+                    .replace(/\s+/g, " ")
+                    .trim();
+
+                const paginas = info.pageCount;
+                const portada = info.imageLinks?.thumbnail;
+
+                document.title = titulo + " - Shelfie";
+
+                const portadaHTML = portada
+                    ? `<img
+                        src="${Shelfie.esc(portada.replace(/^http:/, "https:"))}"
+                        alt="Portada de ${Shelfie.esc(titulo)}"
+                        class="ficha-tmdb-poster">`
+                    : "";
+
+                $("contenido").innerHTML = `
+                    <article class="tarjeta">
+                        <div class="titulo-fila">
+                            <h1>${Shelfie.esc(titulo)}</h1>
+                            <span id="zona-fav"></span>
+                        </div>
+
+                        <div class="ficha-tmdb-contenido">
+                            <div>${portadaHTML}</div>
+
+                            <div class="ficha-tmdb-datos">
+                                <p><b>Tipo:</b> ${Shelfie.chipTipo("LIBRO")}</p>
+                                <p><b>Autor:</b> ${Shelfie.esc(autor)}</p>
+                                <p><b>Año:</b> ${Shelfie.esc(anio || "Desconocido")}</p>
+                                <p><b>Páginas:</b> ${paginas ?? "Desconocidas"}</p>
+
+                                <h3>Sinopsis</h3>
+                                <p>${Shelfie.esc(descripcion)}</p>
+                            </div>
+                        </div>
+
+                        <p class="msg" style="margin-top:20px">
+                            Información obtenida de Google Books.
+                        </p>
+                    </article>
+                `;
+
+
+                // Las interacciones requieren iniciar sesión.
+                const perfil = await Shelfie.obtenerPerfil();
+
+                if (!perfil) {
+                    const aviso = document.createElement("p");
+                    aviso.innerHTML =
+                        'Inicia sesión para valorar, reseñar y guardar este libro. ' +
+                        '<a href="/login.html">Iniciar sesión</a>';
+
+                    $("contenido").appendChild(aviso);
+                    return;
+                }
+
+                usuarioId = perfil.id;
+                tipoObra = "LIBRO";
+
+                // Reutilizamos el formulario de Shelfie.
+                $("contenido").appendChild(obtenerFormularioExperiencia());
+                prepararExperiencia();
+
+                // Recuperamos las interacciones si el libro ya existe en Neon.
+                const referenciaExistente = await consultarReferenciaTmdb();
+
+
+                if (referenciaExistente !== null) {
+                    // Recuperamos las interacciones existentes.
+                    await Promise.all([
+                        cargarInteracciones(),
+                        cargarProgreso()
+                    ]);
+                }
+
+                // Mostramos favoritos y listas incluso si el libro
+                // todavía no tiene una referencia guardada en Neon.
+                await pintarAcciones();
+
+
+            } catch (error) {
+                console.error("Error al cargar Google Books:", error);
+                $("contenido").textContent =
+                    "No se ha podido cargar la información del libro.";
+            }
+        }
+
+
+
+        // ======================================================
+        // 2) INICIO DE LA PÁGINA
+        // ======================================================
+
+        async function iniciar() {
+
+            // Las fichas externas se consultan directamente en TMDB.
+            if (fuenteExterna === "TMDB") {
+                await cargarFichaTmdb();
+                return;
+            }
+
+            // Las fichas externas de libros se consultan en Google Books.
+            if (fuenteExterna === "GOOGLE_BOOKS") {
+                await cargarFichaGoogleBooks();
+                return;
+            }
+
+
+            // Validamos el identificador de las obras de Neon.
+            if (!Number.isInteger(obraId) || obraId < 1) {
+                $("contenido").innerHTML = `
+                    <article class="tarjeta">
+                        <h1>Falta la obra</h1>
+                        <p>La referencia de la obra no es válida.</p>
+                    </article>
+                `;
+                return;
+            }
+
+            // Consultamos la obra y el perfil en paralelo.
+            const [respuestaObra, perfil] = await Promise.all([
+                Shelfie.api("/work/" + obraId),
+                Shelfie.obtenerPerfil()
+            ]);
+
+            if (!respuestaObra.ok) {
+                $("contenido").innerHTML = `
+                    <article class="tarjeta">
+                        <h1>Obra no encontrada</h1>
+                        <p>No se ha podido cargar la obra.</p>
+                    </article>
+                `;
+                return;
+            }
+            
+
+            const obra = respuestaObra.datos;
+
+            if (
+                ["GOOGLE_BOOKS", "TMDB"].includes(obra.fuenteApi) &&
+                obra.idExterno &&
+                ["LIBRO", "PELICULA", "SERIE"].includes(obra.tipo)
+            ) {
+                const parametros = new URLSearchParams({
+                    fuente: obra.fuenteApi,
+                    tipo: obra.tipo,
+                    idExterno: obra.idExterno
+                });
+
+                window.location.replace("/work.html?" + parametros.toString());
+                return;
+            }
+
+
+            pintarObra(respuestaObra.datos);
+
+            // La ficha es pública, pero las interacciones requieren sesión.
+            if (!perfil) {
+                $("experiencia").innerHTML =
+                    '<p>Inicia sesión para valorar, reseñar y guardar esta obra. ' +
+                    '<a href="/login.html">Iniciar sesión</a></p>';
+                return;
+            }
+
+            usuarioId = perfil.id;
+
+            prepararExperiencia();
+
+            await Promise.all([
+                cargarInteracciones(),
+                pintarAcciones(),
+                cargarProgreso()
+            ]);
+        }
+
+        // ======================================================
+        // 3) FICHA DE LAS OBRAS GUARDADAS EN NEON
+        // ======================================================
+        	
+        	
+        // Obtiene el formulario de experiencia que ya utiliza Shelfie.
+        // Permite reutilizarlo en las fichas de TMDB.
+        function obtenerFormularioExperiencia() {
+
+            const plantilla = document.createElement("template");
+
+            plantilla.innerHTML = `
+                <section
+                    id="experiencia"
+                    style="margin-top:24px;padding-top:20px;border-top:1px solid var(--borde)"
+                >
+                    <h3>Mi experiencia</h3>
+
+                    <div class="grupo">
+                        <label for="estado">Estado</label>
+                        <select id="estado">
+                            <option value="">Selecciona un estado…</option>
+                            <option value="PENDIENTE">Pendiente</option>
+                            <option value="EN_CURSO">En curso</option>
+                            <option value="COMPLETADA">Completada</option>
+                            <option value="ABANDONADA">Abandonada</option>
+                        </select>
+
+                        <div class="grupo" id="grupoFecha" hidden>
+                            <label for="fechaCompletada">
+                                Fecha en la que la completaste
+                            </label>
+                            <input type="date" id="fechaCompletada"
+                                   style="max-width:220px">
+                        </div>
+                    </div>
+
+                    <div class="grupo" id="progreso" hidden>
+                        <span class="etiqueta">Mi progreso</span>
+
+                        <div id="progreso-libro" hidden>
+                            <label for="paginas">Páginas leídas</label>
+                            <input type="number" id="paginas" min="0">
+                        </div>
+
+                        <div id="progreso-serie" hidden>
+                            <label for="temporada">Temporada actual</label>
+                            <input type="number" id="temporada" min="1">
+
+                            <label for="capitulo" style="margin-top:8px">
+                                Capítulo actual
+                            </label>
+                            <input type="number" id="capitulo" min="1">
+                        </div>
+
+                        <button type="button" class="btn"
+                                id="guardarProgreso" style="margin-top:8px">
+                            Guardar progreso
+                        </button>
+
+                        <p id="msgProgreso" class="msg" role="status"></p>
+                    </div>
+
+                    <div class="grupo">
+                        <span class="etiqueta">Mi valoración</span>
+                        <div id="estrellas"></div>
+                    </div>
+
+                    <div class="grupo">
+                        <label for="resena">Reseña</label>
+                        <textarea id="resena"
+                            placeholder="Escribe tu opinión sobre la obra…"></textarea>
+                        <small id="contador">0 / 200 palabras</small>
+                    </div>
+
+                    <button type="button" class="btn" id="guardar">
+                        Guardar valoración y reseña
+                    </button>
+
+                    <p id="msg" class="msg" role="status"></p>
+                </section>
+            `;
+
+            return plantilla.content.firstElementChild;
+        }
+
+
+        function pintarObra(obra) {
+
+            tipoObra = obra.tipo;
+            document.title = obra.titulo + " - Shelfie";
+
+            const creador = obra.creador
+                ? `<a href="/creador.html?id=${obra.creador.id}">
+                    ${Shelfie.esc(obra.creador.nombre)}
+                   </a>`
+                : Shelfie.esc(obra.autor || "Desconocido");
+
+            const generos = obra.generos && obra.generos.length
+                ? obra.generos.map(g =>
+                    `<span class="chip genero">
+                        ${Shelfie.esc(Shelfie.formatearEnum(g))}
+                     </span>`
+                ).join("")
+                : '<span class="vacio">Sin géneros indicados</span>';
+
+                // Conservamos el formulario para reutilizarlo
+                // también en las fichas externas de TMDB.
+                const formularioExperiencia = obtenerFormularioExperiencia();
+
+
+            $("contenido").innerHTML = `
+                <article class="tarjeta">
+
+                    <div class="titulo-fila">
+                        <h1>${Shelfie.esc(obra.titulo)}</h1>
+                        <span id="zona-fav"></span>
+                    </div>
+
+                    <p>
+                        <b>Creador:</b> ${creador}
+                    </p>
+
+                    <p>
+                        <b>Tipo:</b> ${Shelfie.chipTipo(obra.tipo)}
+                        ${
+                            obra.anio
+                                ? " · <b>Año:</b> " + Shelfie.esc(obra.anio)
+                                : ""
+                        }
+                    </p>
+
+                    <div>
+                        <b>Géneros:</b>
+                        <div style="margin-top:6px">
+                            ${generos}
+                        </div>
+                    </div>
+
+                    <p>${Shelfie.esc(obra.descripcion || "")}</p>
+
+                    
+
+                    </article>
+                `;
+
+                // Insertamos el formulario reutilizable.
+                $("contenido")
+                    .querySelector("article")
+                    .appendChild(formularioExperiencia);
+            }
+
+
+        // ======================================================
+        // 4) CONTROLES DE MI EXPERIENCIA
+        // ======================================================
+
+        function prepararExperiencia() {
+
+            estrellas = Shelfie.estrellas($("estrellas"), {});
+
+            $("estado").addEventListener(
+                "change",
+                guardarEstado
+            );
+
+            $("guardar").addEventListener(
+                "click",
+                guardarValoracionYResena
+            );
+
+            $("resena").addEventListener(
+                "input",
+                contarPalabras
+            );
+
+            if (tipoObra === "LIBRO") {
+                $("progreso").hidden = false;
+                $("progreso-libro").hidden = false;
+            }
+
+            if (tipoObra === "SERIE") {
+                $("progreso").hidden = false;
+                $("progreso-serie").hidden = false;
+            }
+
+            $("guardarProgreso").addEventListener(
+                "click",
+                guardarProgreso
+            );
+
+            $("fechaCompletada").max = hoyISO();
+
+            $("fechaCompletada").addEventListener(
+                "change",
+                guardarEstado
+            );
+        }
+
+        function contarPalabras() {
+
+            const texto = $("resena").value.trim();
+
+            const palabras = texto === ""
+                ? 0
+                : texto.split(/\s+/).length;
+
+            $("contador").textContent =
+                palabras + " / 200 palabras";
+
+            $("contador").style.color = palabras > 200
+                ? "var(--error)"
+                : "inherit";
+
+            return palabras;
+        }
+
+        // ======================================================
+        // 5) ESTADO, VALORACIÓN Y RESEÑA
+        // ======================================================
+
+        async function cargarInteracciones() {
+
+            const [est, val, res] = await Promise.all([
+                Shelfie.api(
+                    `/users/${usuarioId}/works/${obraId}/estado`
+                ),
+                Shelfie.api(
+                    `/api/valoraciones/obra/${obraId}/usuario/${usuarioId}`
+                ),
+                Shelfie.api(
+                    `/api/resenas/obra/${obraId}/usuario/${usuarioId}`
+                )
+            ]);
+
+            if (est.ok && est.datos) {
+                $("estado").value = est.datos;
+            }
+
+            actualizarGrupoFecha();
+
+            if (val.ok && val.datos) {
+                valoracionId = val.datos.id;
+                estrellas.set(val.datos.puntuacion);
+            }
+
+            if (res.ok && res.datos) {
+                resenaId = res.datos.id;
+                $("resena").value = res.datos.texto;
+                contarPalabras();
+            }
+        }
+
+        async function guardarEstado() {
+
+            const estado = $("estado").value;
+
+            if (!estado) {
+                return;
+            }
+
+            actualizarGrupoFecha();
+            
+
+            // Creamos la referencia externa solo cuando el usuario
+            // selecciona un estado para guardar.
+            if (["TMDB", "GOOGLE_BOOKS"].includes(fuenteExterna)) {
+                try {
+                    await asegurarReferenciaTmdb();
+                } catch (error) {
+                    mostrar(
+                        "No se ha podido guardar el estado: " + error.message,
+                        false
+                    );
+                    return;
+                }
+            }
+
+
+            let url =
+                `/users/${usuarioId}/works/${obraId}/estado?estado=${encodeURIComponent(estado)}`;
+
+            if (
+                estado === "COMPLETADA" &&
+                $("fechaCompletada").value
+            ) {
+                url += "&fecha=" +
+                    encodeURIComponent($("fechaCompletada").value);
+            }
+
+            const r = await Shelfie.api(url, {
+                method: "PUT"
+            });
+
+            r.ok
+                ? mostrar("Estado actualizado.", true)
+                : mostrar(
+                    textoError(
+                        r,
+                        "No se ha podido cambiar el estado."
+                    ),
+                    false
+                );
+        }
+
+        // Fecha actual en formato yyyy-MM-dd.
+        function hoyISO() {
+
+            const d = new Date();
+
+            return d.getFullYear() +
+                "-" +
+                String(d.getMonth() + 1).padStart(2, "0") +
+                "-" +
+                String(d.getDate()).padStart(2, "0");
+        }
+
+        function actualizarGrupoFecha() {
+
+            const completada =
+                $("estado").value === "COMPLETADA";
+
+            $("grupoFecha").hidden = !completada;
+
+            if (
+                completada &&
+                !$("fechaCompletada").value
+            ) {
+                $("fechaCompletada").value = hoyISO();
+            }
+        }
+
+        async function guardarValoracionYResena() {
+
+            const puntuacion = estrellas.get();
+            const texto = $("resena").value.trim();
+
+            if (contarPalabras() > 200) {
+                mostrar(
+                    "La reseña no puede superar las 200 palabras.",
+                    false
+                );
+                return;
+            }
+
+
+            $("guardar").disabled = true;
+
+            try {
+
+                // Si no hay valoración ni reseña, no creamos
+                // una referencia innecesaria en Neon.
+                if (puntuacion <= 0 && !texto && valoracionId === null) {
+                    mostrar("Selecciona una valoración o escribe una reseña.", false);
+                    return;
+                }
+
+
+                // Para TMDB y Google Books, creamos la referencia
+                // únicamente al guardar una valoración o reseña.
+                if (["TMDB", "GOOGLE_BOOKS"].includes(fuenteExterna)) {
+                    await asegurarReferenciaTmdb();
+                }
+
+                console.log("Fuente:", fuenteExterna);
+                console.log("ID externo TMDB:", idExterno);
+                console.log("ID de Neon:", obraId);
+                console.log("Usuario:", usuarioId);
+                console.log("Puntuación:", puntuacion);
+
+                // Guardamos la valoración.
+
+                if (
+                    puntuacion > 0 ||
+                    valoracionId !== null
+                ) {
+
+                    const r = valoracionId === null
+                        ? await Shelfie.api(
+                            "/api/valoraciones",
+                            {
+                                method: "POST",
+                                headers: JSON_HEADERS,
+                                body: JSON.stringify({
+                                    usuarioId,
+                                    obraId,
+                                    puntuacion
+                                })
+                            }
+                        )
+                        : await Shelfie.api(
+                            "/api/valoraciones/" + valoracionId,
+                            {
+                                method: "PUT",
+                                headers: JSON_HEADERS,
+                                body: JSON.stringify({
+                                    puntuacion
+                                })
+                            }
+                        );
+
+                    if (!r.ok) {
+                        throw new Error(
+                            textoError(
+                                r,
+                                "No se han podido guardar las estrellas."
+                            )
+                        );
+                    }
+
+                    valoracionId = r.datos.id;
+                }
+
+                // Guardamos la reseña.
+                if (texto) {
+
+                    const r = resenaId === null
+                        ? await Shelfie.api(
+                            "/api/resenas",
+                            {
+                                method: "POST",
+                                headers: JSON_HEADERS,
+                                body: JSON.stringify({
+                                    usuarioId,
+                                    obraId,
+                                    valoracionId,
+                                    texto
+                                })
+                            }
+                        )
+                        : await Shelfie.api(
+                            "/api/resenas/" + resenaId,
+                            {
+                                method: "PUT",
+                                headers: JSON_HEADERS,
+                                body: JSON.stringify({
+                                    texto
+                                })
+                            }
+                        );
+
+                    if (!r.ok) {
+                        throw new Error(
+                            textoError(
+                                r,
+                                "Las estrellas se guardaron, pero la reseña no."
+                            )
+                        );
+                    }
+
+                    resenaId = r.datos.id;
+                }
+
+                mostrar("Guardado correctamente.", true);
+
+            } catch (error) {
+
+                mostrar(error.message, false);
+
+            } finally {
+
+                $("guardar").disabled = false;
+            }
+        }
+
+        // ======================================================
+        // 6) PROGRESO DE LECTURA Y SERIES
+        // ======================================================
+
+        async function cargarProgreso() {
+
+            const r = await Shelfie.api(
+                "/api/progreso/obra/" + obraId
+            );
+
+            if (!r.ok || !r.datos) {
+                return;
+            }
+
+            if (
+                tipoObra === "LIBRO" ||
+                tipoObra === "SERIE"
+            ) {
+
+                if (r.datos.paginasLeidas != null) {
+                    $("paginas").value =
+                        r.datos.paginasLeidas;
+                }
+
+                if (r.datos.temporadaActual != null) {
+                    $("temporada").value =
+                        r.datos.temporadaActual;
+                }
+
+                if (r.datos.capituloActual != null) {
+                    $("capitulo").value =
+                        r.datos.capituloActual;
+                }
+            }
+
+            if (r.datos.fechaCompletada) {
+                $("fechaCompletada").value =
+                    r.datos.fechaCompletada;
+            }
+
+            actualizarGrupoFecha();
+        }
+
+        async function guardarProgreso() {
+
+            // Para las obras externas, obtenemos o creamos su
+            // referencia en Neon antes de guardar el progreso.
+            if (["TMDB", "GOOGLE_BOOKS"].includes(fuenteExterna)) {
+                try {
+                    await asegurarReferenciaTmdb();
+                } catch (error) {
+                    mostrar(
+                        "No se ha podido guardar el progreso: " + error.message,
+                        false,
+                        "msgProgreso"
+                    );
+                    return;
+                }
+            }
+
+
+            const num = id =>
+            
+                $(id).value === ""
+                    ? null
+                    : Number($(id).value);
+
+            const cuerpo = tipoObra === "LIBRO"
+                ? {
+                    paginasLeidas: num("paginas")
+                }
+                : {
+                    temporadaActual: num("temporada"),
+                    capituloActual: num("capitulo")
+                };
+
+            const r = await Shelfie.api(
+                "/api/progreso/obra/" + obraId,
+                {
+                    method: "PUT",
+                    headers: JSON_HEADERS,
+                    body: JSON.stringify(cuerpo)
+                }
+            );
+
+            if (r.ok) {
+
+                if (r.datos.estado) {
+                    $("estado").value = r.datos.estado;
+                    actualizarGrupoFecha();
+                }
+
+                mostrar(
+                    "Progreso guardado.",
+                    true,
+                    "msgProgreso"
+                );
+
+            } else {
+
+                mostrar(
+                    textoError(
+                        r,
+                        "No se ha podido guardar el progreso."
+                    ),
+                    false,
+                    "msgProgreso"
+                );
+            }
+        }
+
+        // ======================================================
+        // 7) FAVORITOS Y LISTAS
+        // ======================================================
+
+        async function pintarAcciones() {
+
+
+            // Consultamos las listas asociadas a la obra solo
+            // cuando ya tiene un identificador válido en Neon.
+            const tieneReferencia = Number.isInteger(obraId) && obraId > 0;
+
+
+            const [fav, listas] = await Promise.all([
+                Shelfie.api("/api/favoritos"),
+                tieneReferencia
+                    ? Shelfie.api("/api/listas/obra/" + obraId)
+                    : Shelfie.api("/api/listas")
+            ]);
+
+
+
+            const caja = $("acciones");
+
+            caja.hidden = false;
+            caja.innerHTML = "";
+
+            const mensaje = crear("p", "", "msg");
+            mensaje.setAttribute("role", "status");
+
+            function aviso(texto, correcto) {
+                mensaje.textContent = texto;
+                mensaje.className =
+                    "msg " + (correcto ? "ok" : "error");
+            }
+
+            // ------------------------------------------
+            // FAVORITOS
+            // ------------------------------------------
+
+            let esFavorita =
+                Array.isArray(fav.datos) &&
+                fav.datos.some(f => f.obraId === obraId);
+
+            const botonFav = document.createElement("button");
+
+            botonFav.type = "button";
+            botonFav.className = "btn-icono";
+
+            botonFav.innerHTML =
+                '<svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+                '<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>' +
+                '</svg>';
+
+            function pintarFav() {
+
+                botonFav.classList.toggle(
+                    "activo",
+                    esFavorita
+                );
+
+                botonFav.setAttribute(
+                    "aria-pressed",
+                    String(esFavorita)
+                );
+
+                const texto = esFavorita
+                    ? "Quitar de favoritos"
+                    : "Fijar como favorita";
+
+                botonFav.title = texto;
+
+                botonFav.setAttribute(
+                    "aria-label",
+                    texto
+                );
+            }
+
+            pintarFav();
+
+            botonFav.addEventListener("click", async () => {
+
+                // Creamos la referencia externa únicamente
+                // cuando el usuario pulsa el botón de favoritos.
+                if (["TMDB", "GOOGLE_BOOKS"].includes(fuenteExterna)) {
+                    try {
+                        await asegurarReferenciaTmdb();
+                    } catch (error) {
+                        aviso(
+                            "No se ha podido guardar el favorito: " + error.message,
+                            false
+                        );
+                        return;
+                    }
+                }
+
+
+                const r = await Shelfie.api(
+                    "/api/favoritos/" + obraId,
+                    {
+                        method: esFavorita
+                            ? "DELETE"
+                            : "POST"
+                    }
+                );
+
+                if (r.ok) {
+
+                    esFavorita = !esFavorita;
+
+                    pintarFav();
+
+                    aviso(
+                        esFavorita
+                            ? "Obra fijada como favorita."
+                            : "Obra quitada de favoritos.",
+                        true
+                    );
+
+                } else {
+
+                    aviso(
+                        textoError(
+                            r,
+                            "No se ha podido completar la acción."
+                        ),
+                        false
+                    );
+                }
+            });
+
+            let zonaFav = $("zona-fav");
+
+            if (!zonaFav) {
+                zonaFav = crear("div");
+                zonaFav.id = "zona-fav";
+
+                const tarjeta = $("contenido").querySelector("article.tarjeta");
+                tarjeta.appendChild(zonaFav);
+            }
+
+            zonaFav.appendChild(botonFav);
+            // ------------------------------------------
+            // LISTAS
+            // ------------------------------------------
+
+            caja.appendChild(
+                crear("h3", "Guardar en mis listas")
+            );
+
+            if (
+                !listas.ok ||
+                !Array.isArray(listas.datos) ||
+                listas.datos.length === 0
+            ) {
+
+                const vacio = crear(
+                    "p",
+                    "Todavía no tienes listas. ",
+                    "vacio"
+                );
+
+                const enlace = crear(
+                    "a",
+                    "Créalas en tu perfil"
+                );
+
+                enlace.href = "/perfil.html";
+
+                vacio.appendChild(enlace);
+                caja.appendChild(vacio);
+
+            } else {
+
+                listas.datos.forEach(lista => {
+
+                    let dentro = lista.contieneObra;
+
+                    const fila = crear(
+                        "div",
+                        undefined,
+                        "lista-fila"
+                    );
+
+                    fila.appendChild(
+                        crear("span", lista.nombre)
+                    );
+
+                    const boton = crear(
+                        "button",
+                        "",
+                        "btn-mas"
+                    );
+
+                    boton.type = "button";
+
+                    function pintarBoton() {
+
+                        boton.textContent = dentro
+                            ? "✓"
+                            : "+";
+
+                        boton.classList.toggle(
+                            "activo",
+                            dentro
+                        );
+
+                        boton.setAttribute(
+                            "aria-pressed",
+                            String(dentro)
+                        );
+
+                        boton.setAttribute(
+                            "aria-label",
+                            (
+                                dentro
+                                    ? "Quitar de "
+                                    : "Añadir a "
+                            ) + lista.nombre
+                        );
+                    }
+
+                    pintarBoton();
+
+                    // Guardamos el cambio al pulsar el botón.
+                    
+							boton.addEventListener(
+    							"click",
+   								 async () => {
+
+       							 boton.disabled = true;
+
+                    
+                        // Creamos la referencia externa solo
+                        // cuando el usuario modifica una lista.
+                        if (["TMDB", "GOOGLE_BOOKS"].includes(fuenteExterna)) {
+                            try {
+                                await asegurarReferenciaTmdb();
+                            } catch (error) {
+                                aviso(
+                                    "No se ha podido modificar la lista: " + error.message,
+                                    false
+                                );
+                                boton.disabled = false;
+                                return;
+                            }
+                        }
+
+
+                            const r = await Shelfie.api(
+                                "/api/listas/" +
+                                lista.id +
+                                "/obras/" +
+                                obraId,
+                                {
+                                    method: dentro
+                                        ? "DELETE"
+                                        : "POST"
+                                }
+                            );
+
+                            boton.disabled = false;
+
+                            if (r.ok) {
+
+                                dentro = !dentro;
+
+                                pintarBoton();
+
+                                aviso(
+                                    dentro
+                                        ? `Añadida a "${lista.nombre}".`
+                                        : `Quitada de "${lista.nombre}".`,
+                                    true
+                                );
+
+                            } else {
+
+                                aviso(
+                                    textoError(
+                                        r,
+                                        "No se ha podido guardar el cambio."
+                                    ),
+                                    false
+                                );
+                            }
+                        }
+                    );
+
+                    fila.appendChild(boton);
+                    caja.appendChild(fila);
+                });
+            }
+
+            caja.appendChild(mensaje);
+        }
+
+        // Iniciamos la página.
+        iniciar();
+
+    </script>
 
 </body>
 </html>

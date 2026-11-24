@@ -91,8 +91,14 @@ public class ListaService {
 		List<SearchResultDTO> obras = new ArrayList<>();
 
 		for (Obra obra : obraRepository.findAllById(idsObras)) {
-			obras.add(new SearchResultDTO(obra.getId(), obra.getTitulo(),
-					obra.getTipo() == null ? "" : obra.getTipo().name()));
+
+			SearchResultDTO dto = new SearchResultDTO(obra.getId(), obra.getTitulo(),
+					obra.getTipo() == null ? "" : obra.getTipo().name());
+
+			dto.setFuenteApi(obra.getFuenteApi());
+			dto.setIdExterno(obra.getIdExterno());
+
+			obras.add(dto);
 		}
 
 		Usuario propietario = usuarioRepository.findById(lista.getUsuarioId()).orElse(null);

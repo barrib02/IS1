@@ -7,47 +7,60 @@
 <link rel="icon" href="/images/logo.svg">
 <link rel="stylesheet" href="/css/shelfie.css">
 <script src="/js/shelfie.js"></script>
+<style>
+.portada-obra {
+	display: block;
+	width: 100%;
+	height: 200px;
+	object-fit: contain;
+	border-radius: 8px;
+	margin-bottom: 12px;
+}
+</style>
+
 </head>
 <body>
 
-<!-- La barra superior (logo, enlaces y avatar) la pinta shelfie.js -->
-<div id="navbar"></div>
+	<!-- La barra superior (logo, enlaces y avatar) la pinta shelfie.js -->
+	<div id="navbar"></div>
 
-<main class="contenedor">
+	<main class="contenedor">
 
-	<h1>Buscar</h1>
+		<h1>Buscar</h1>
 
-	<!-- Cambiar entre buscar obras o listas públicas -->
-	<div class="pestanas">
-		<button type="button" class="pestana activa" id="modoObras" aria-pressed="true">Obras</button>
-		<button type="button" class="pestana" id="modoListas" aria-pressed="false">Listas</button>
-	</div>
-
-	<div class="barra-busqueda">
-		<div class="campo-sug">
-			<input type="search" id="titulo" placeholder="Busca por título…"
-				autocomplete="off" aria-label="Texto a buscar">
-			<div id="sugerencias" class="sugerencias" hidden></div>
+		<!-- Cambiar entre buscar obras o listas públicas -->
+		<div class="pestanas">
+			<button type="button" class="pestana activa" id="modoObras"
+				aria-pressed="true">Obras</button>
+			<button type="button" class="pestana" id="modoListas"
+				aria-pressed="false">Listas</button>
 		</div>
 
-		<select id="tipo" aria-label="Tipo de obra">
-			<option value="">Todos los tipos</option>
-			<option value="LIBRO">Libro</option>
-			<option value="PELICULA">Película</option>
-			<option value="SERIE">Serie</option>
-			<option value="VIDEOJUEGO">Videojuego</option>
-		</select>
+		<div class="barra-busqueda">
+			<div class="campo-sug">
+				<input type="search" id="titulo" placeholder="Busca por título…"
+					autocomplete="off" aria-label="Texto a buscar">
+				<div id="sugerencias" class="sugerencias" hidden></div>
+			</div>
 
-		<button type="button" id="buscar" class="btn">Buscar</button>
-	</div>
+			<select id="tipo" aria-label="Tipo de obra">
+				<option value="">Todos los tipos</option>
+				<option value="LIBRO">Libro</option>
+				<option value="PELICULA">Película</option>
+				<option value="SERIE">Serie</option>
+				<option value="VIDEOJUEGO">Videojuego</option>
+			</select>
 
-	<h2 id="encabezado">Obras recientes</h2>
-	<p id="estado" class="msg" role="status"></p>
-	<div id="resultados" class="rejilla"></div>
+			<button type="button" id="buscar" class="btn">Buscar</button>
+		</div>
 
-</main>
+		<h2 id="encabezado">Obras recientes</h2>
+		<p id="estado" class="msg" role="status"></p>
+		<div id="resultados" class="rejilla"></div>
 
-<script>
+	</main>
+
+	<script>
 const $ = id => document.getElementById(id);
 const enc = encodeURIComponent;
 
@@ -109,11 +122,47 @@ async function ejecutar() {
 			$("encabezado").textContent = tipo ? "Descubre " + NOMBRE_PLURAL[tipo] : "Descubre";
 			datos = await pedir("/explorar/estantes" + (tipo ? "?tipo=" + enc(tipo) : ""));
 			if (miPeticion === numeroPeticion) { pintarEstantes(datos); }
+
 		} else {
-			$("encabezado").textContent = "Resultados";
-			datos = await pedir("/search?titulo=" + enc(texto) + "&tipo=" + enc(tipo));
-			if (miPeticion === numeroPeticion) { pintarObras(datos); }
+		    $("encabezado").textContent = "Resultados";
+
+		    if (tipo === "LIBRO") {
+		        // Buscamos libros en Google Books.
+		        $("estado").className = "msg";
+		        $("estado").textContent = "Buscando libros…";
+
+		        try {
+		            const respuesta = await Shelfie.api(
+		                "/api/googlebooks/buscar?titulo=" + enc(texto)
+		            );
+
+		            if (miPeticion !== numeroPeticion) return;
+
+		            if (!respuesta.ok) {
+		                throw new Error("Error al consultar Google Books");
+		            }
+
+		            datos = adaptarLibrosGoogle(respuesta.datos || {});
+		            $("estado").textContent = "";
+		        } catch (error) {
+		            if (miPeticion !== numeroPeticion) return;
+
+		            datos = [];
+		            $("estado").className = "msg error";
+		            $("estado").textContent = "No se han podido buscar los libros.";
+		        }
+		    } else {
+		        // Mantenemos las búsquedas actuales para los demás tipos.
+		        datos = await pedir(
+		            "/search?titulo=" + enc(texto) + "&tipo=" + enc(tipo)
+		        );
+		    }
+
+		    if (miPeticion === numeroPeticion) {
+		        pintarObras(datos);
+		    }
 		}
+
 	} else {
 		if (!texto) {
 			$("encabezado").textContent = "Listas públicas";
@@ -127,18 +176,105 @@ async function ejecutar() {
 }
 
 // ---------- Pintar resultados ----------
-function pintarObras(obras) {
-	const caja = $("resultados");
-		caja.className = "rejilla";
-	if (obras.length === 0) {
-		caja.innerHTML = '<p class="vacio">No hay obras con esos criterios. Prueba con otro título o quita el filtro de tipo.</p>';
-		return;
+
+function adaptarLibrosGoogle(datos) {
+    return (datos.items || []).map(libro => ({
+        fuenteApi: "GOOGLE_BOOKS",
+        idExterno: libro.id,
+        tipo: "LIBRO",
+        titulo: libro.volumeInfo?.title || "Sin título",
+        autor: (libro.volumeInfo?.authors || []).join(", "),
+        descripcion: libro.volumeInfo?.description || "",
+        portada: libro.volumeInfo?.imageLinks?.thumbnail || null
+    }));
+}
+
+
+
+/**
+ * Genera el enlace de una obra.
+ * Las obras de Neon utilizan su ID interno.
+ * Las obras externas de TMDB utilizan su ID externo.
+ */
+ 
+ function enlaceObra(obra) {
+
+	    // Obras procedentes de APIs externas.
+	    if (
+	        obra.idExterno &&
+	        (
+	            (obra.fuenteApi === "GOOGLE_BOOKS" && obra.tipo === "LIBRO") ||
+	            (obra.fuenteApi === "TMDB" &&
+	                ["PELICULA", "SERIE"].includes(obra.tipo))
+	        )
+	    ) {
+	        const parametros = new URLSearchParams({
+	            fuente: obra.fuenteApi,
+	            tipo: obra.tipo,
+	            idExterno: obra.idExterno
+	        });
+
+	        return "/work.html?" + parametros.toString();
+	    }
+
+	    // Obras originales almacenadas en Neon.
+	    if (obra.id != null) {
+	        return "/work.html?id=" + encodeURIComponent(obra.id);
+	    }
+
+	    return "/search.html";
 	}
-	caja.innerHTML = obras.map(o => `
-	<article class="tarjeta-obra ${Shelfie.claseTipo(o.tipo)}">
-	${Shelfie.chipTipo(o.tipo)}
-			<h3><a href="/work.html?id=${o.id}">${Shelfie.esc(o.titulo)}</a></h3>
-		</article>`).join("");
+ function pintarObras(obras) {
+
+	    const caja = $("resultados");
+	    caja.className = "rejilla";
+
+	    if (obras.length === 0) {
+	        caja.innerHTML =
+	            '<p class="vacio">No hay obras con esos criterios. Prueba con otro título o quita el filtro de tipo.</p>';
+	        return;
+	    }
+
+	    caja.innerHTML = obras.map(o => `
+	        <article class="tarjeta-obra ${Shelfie.claseTipo(o.tipo)}">
+
+	            ${portadaObra(o)}
+
+	            ${Shelfie.chipTipo(o.tipo)}
+
+	            <h3>
+	                <a href="${enlaceObra(o)}">
+	                    ${Shelfie.esc(o.titulo)}
+	                </a>
+	            </h3>
+
+	        </article>
+	    `).join("");
+	}
+//Genera la portada de una obra cuando está disponible.
+function portadaObra(obra) {
+
+    const imagen = obra.imagenUrl || obra.portada;
+
+    if (!imagen) {
+        return "";
+    }
+
+    const url = imagen.replace(/^http:/, "https:");
+
+    if (!url.startsWith("https://")) {
+        return "";
+    }
+
+    return `
+        <a href="${enlaceObra(obra)}">
+            <img
+                class="portada-obra"
+                src="${Shelfie.esc(url)}"
+                alt="Portada de ${Shelfie.esc(obra.titulo)}"
+                loading="lazy">
+        </a>
+    `;
 }
 
 function pintarListas(listas) {
@@ -156,28 +292,49 @@ function pintarListas(listas) {
 		</article>`).join("");
 }
 
-// Pinta los estantes: cada uno es una fila horizontal que se desliza.
+//Pinta los estantes con obras externas e internas.
 function pintarEstantes(estantes) {
-	const caja = $("resultados");
-	caja.className = "";   // los estantes no usan la rejilla
 
-	if (estantes.length === 0) {
-		caja.innerHTML = '<p class="vacio">Todavía no hay obras para descubrir.</p>';
-		return;
-	}
+    const caja = $("resultados");
+    caja.className = "";
 
-	caja.innerHTML = estantes.map(e => `
-		<section class="estante">
-			<h2>${Shelfie.esc(e.titulo)}</h2>
-			<p class="subtitulo">${Shelfie.esc(e.subtitulo)}</p>
-			<div class="fila">
-				${e.obras.map(o => `
-					<article class="tarjeta-obra ${Shelfie.claseTipo(o.tipo)}">
-					${Shelfie.chipTipo(o.tipo)}
-						<h3><a href="/work.html?id=${o.id}">${Shelfie.esc(o.titulo)}</a></h3>
-					</article>`).join("")}
-			</div>
-		</section>`).join("");
+    if (estantes.length === 0) {
+        caja.innerHTML =
+            '<p class="vacio">Todavía no hay obras para descubrir.</p>';
+        return;
+    }
+
+    caja.innerHTML = estantes.map(e => `
+        <section class="estante">
+
+            <h2>${Shelfie.esc(e.titulo)}</h2>
+
+            <p class="subtitulo">
+                ${Shelfie.esc(e.subtitulo)}
+            </p>
+
+            <div class="fila">
+
+                ${e.obras.map(o => `
+                    <article class="tarjeta-obra ${Shelfie.claseTipo(o.tipo)}">
+
+                        ${portadaObra(o)}
+
+                        ${Shelfie.chipTipo(o.tipo)}
+
+                        <h3>
+                            <a href="${enlaceObra(o)}">
+                                ${Shelfie.esc(o.titulo)}
+                            </a>
+                        </h3>
+
+                    </article>
+                `).join("")}
+
+            </div>
+
+        </section>
+    `).join("");
 }
 
 // ---------- Sugerencias mientras se escribe ----------
@@ -202,16 +359,56 @@ async function sugerir() {
 		const r = await Shelfie.api(url, { signal: controladorSug.signal });
 		if (!r.ok || !Array.isArray(r.datos) || r.datos.length === 0) { ocultarSugerencias(); return; }
 
-		const destino = modo === "obras" ? "/work.html?id=" : "/lista.html?id=";
-		const campo = modo === "obras" ? "titulo" : "nombre";
 
-		$("sugerencias").innerHTML = r.datos.map(item =>
-			`<a href="${destino}${item.id}">${Shelfie.esc(item[campo])}</a>`).join("");
+		$("sugerencias").innerHTML = r.datos.map(item => {
+
+		    // Las sugerencias de listas mantienen su funcionamiento.
+		    if (modo === "listas") {
+		        return `<a href="/lista.html?id=${item.id}">
+		            ${Shelfie.esc(item.nombre)}
+		        </a>`;
+		    }
+
+		    // Las obras guardadas en Neon tienen un ID interno.
+		    if (item.id != null) {
+		        return `<a href="/work.html?id=${encodeURIComponent(item.id)}">
+		            ${Shelfie.esc(item.titulo)}
+		        </a>`;
+		    }
+
+		    // Las obras externas todavía no tienen ficha propia.
+		    // Al seleccionarlas, mostramos sus resultados de búsqueda.
+		    return `<a href="#" class="sugerencia-externa"
+		        data-titulo="${Shelfie.esc(item.titulo)}">
+		        ${Shelfie.esc(item.titulo)}
+		        (${Shelfie.esc(Shelfie.NOMBRE_TIPO[item.tipo] || item.tipo)})
+		    </a>`;
+
+		}).join("");
+
 		$("sugerencias").hidden = false;
 	} catch (e) {
 		// AbortError: la petición se canceló a propósito; no hay que hacer nada.
 	}
 }
+
+
+//Permite seleccionar sugerencias de obras externas.
+$("sugerencias").addEventListener("click", e => {
+
+ const enlace = e.target.closest(".sugerencia-externa");
+
+ if (!enlace) return;
+
+ e.preventDefault();
+
+ // Copiamos el título seleccionado al buscador.
+ $("titulo").value = enlace.dataset.titulo;
+
+ // Mostramos los resultados de esa búsqueda.
+ ejecutar();
+});
+
 
 // ---------- Eventos ----------
 $("buscar").addEventListener("click", ejecutar);

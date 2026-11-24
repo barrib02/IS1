@@ -73,8 +73,8 @@ public class SecurityConfig {
 						// H6.2 - Cierre de sesión.
 						.requestMatchers(HttpMethod.POST, "/api/auth/logout").authenticated()
 
-						// Consultas públicas de obras.
-						.requestMatchers(HttpMethod.GET, "/search", "/work/*").permitAll()
+						// Consultas públicas de obras y APIs externas.
+						.requestMatchers(HttpMethod.GET, "/search", "/work/*", "/api/googlebooks/**").permitAll()
 
 						// Consultas públicas de reseñas y valoraciones.
 						.requestMatchers(HttpMethod.GET, "/api/resenas/**", "/api/valoraciones/**").permitAll()
@@ -89,8 +89,9 @@ public class SecurityConfig {
 						.requestMatchers("/work/*/estado").authenticated()
 
 						// NUEVO: perfil, favoritos y listas requieren sesión.
-						.requestMatchers("/api/perfil/**", "/api/favoritos/**", "/api/listas/**",
-								"/api/progreso/**", "/api/estadisticas/**", "/configuracion.html", "/api/exportar/**").authenticated()
+						.requestMatchers("/api/perfil/**", "/api/favoritos/**", "/api/listas/**", "/api/progreso/**",
+								"/api/estadisticas/**", "/configuracion.html", "/api/exportar/**")
+						.authenticated()
 
 						// El resto queda protegido por defecto.
 						.anyRequest().authenticated());

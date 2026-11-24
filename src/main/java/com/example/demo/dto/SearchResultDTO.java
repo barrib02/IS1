@@ -6,6 +6,15 @@ public class SearchResultDTO {
 	private String titulo;
 	private String tipo;
 
+	// API de origen: TMDB, GOOGLE_BOOKS, RAWG o null para obras manuales.
+	private String fuenteApi;
+
+	// Identificador de la obra en la API externa.
+	private String idExterno;
+
+	// Imagen de portada o póster.
+	private String imagenUrl;
+
 	public SearchResultDTO() {
 	}
 
@@ -37,6 +46,30 @@ public class SearchResultDTO {
 
 	public void setTipo(String tip) {
 		this.tipo = tip;
+	}
+
+	public String getFuenteApi() {
+		return fuenteApi;
+	}
+
+	public void setFuenteApi(String fuenteApi) {
+		this.fuenteApi = fuenteApi;
+	}
+
+	public String getIdExterno() {
+		return idExterno;
+	}
+
+	public void setIdExterno(String idExterno) {
+		this.idExterno = idExterno;
+	}
+
+	public String getImagenUrl() {
+		return imagenUrl;
+	}
+
+	public void setImagenUrl(String imagenUrl) {
+		this.imagenUrl = imagenUrl;
 	}
 
 }

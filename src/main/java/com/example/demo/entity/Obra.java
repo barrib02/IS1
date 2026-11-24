@@ -18,6 +18,21 @@ public class Obra {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
+	// API de origen de la obra: TMDB, GOOGLE_BOOKS o RAWG.
+	// Es null para las obras registradas manualmente.
+	@Column(name = "fuente_api")
+	private String fuenteApi;
+
+	// Identificador original de la obra en su API.
+	// Se almacena como String para admitir IDs de distintas APIs.
+	@Column(name = "id_externo")
+	private String idExterno;
+
+	// URL de la portada, utilizada principalmente para obras manuales.
+	// Las obras externas obtendrán sus portadas directamente de la API.
+	@Column(name = "imagen_url", columnDefinition = "TEXT")
+	private String imagenUrl;
+
 	private String titulo;
 	private String autor;
 
@@ -150,16 +165,45 @@ public class Obra {
 	public void setAutorId(Long autorId) {
 		this.autorId = autorId;
 	}
-	
+
 	// Motivo escrito por el moderador al validar o rechazar.
 	@Column(length = 1000)
 	private String justificacionModeracion;
 
 	@JsonIgnore
-	public String getJustificacionModeracion() { return justificacionModeracion; }
+	public String getJustificacionModeracion() {
+		return justificacionModeracion;
+	}
 
 	public void setJustificacionModeracion(String justificacionModeracion) {
 		this.justificacionModeracion = justificacionModeracion;
+	}
+
+	// Obtiene la API de origen de la obra.
+	public String getFuenteApi() {
+		return fuenteApi;
+	}
+
+	public void setFuenteApi(String fuenteApi) {
+		this.fuenteApi = fuenteApi;
+	}
+
+	// Obtiene el identificador original de la obra en la API.
+	public String getIdExterno() {
+		return idExterno;
+	}
+
+	public void setIdExterno(String idExterno) {
+		this.idExterno = idExterno;
+	}
+
+	// Obtiene la URL de la portada.
+	public String getImagenUrl() {
+		return imagenUrl;
+	}
+
+	public void setImagenUrl(String imagenUrl) {
+		this.imagenUrl = imagenUrl;
 	}
 
 }

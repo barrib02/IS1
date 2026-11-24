@@ -23,16 +23,40 @@ main button {
 	font: inherit;
 	font-size: 0.95rem;
 }
-main button:hover { background-color: var(--verde-oscuro); }
-main button.secundario { background-color: #8a7a6b; }
-main button.secundario:hover { background-color: #6e6054; }
-main button.peligro { background-color: var(--error); }
-main button.peligro:hover { background-color: #962d22; }
-main button:disabled { opacity: 0.4; cursor: default; }
 
-main h1, main h2, main h3 { margin-top: 0; }
+main button:hover {
+	background-color: var(--verde-oscuro);
+}
 
-main textarea { height: 110px; resize: vertical; }
+main button.secundario {
+	background-color: #8a7a6b;
+}
+
+main button.secundario:hover {
+	background-color: #6e6054;
+}
+
+main button.peligro {
+	background-color: var(--error);
+}
+
+main button.peligro:hover {
+	background-color: #962d22;
+}
+
+main button:disabled {
+	opacity: 0.4;
+	cursor: default;
+}
+
+main h1, main h2, main h3 {
+	margin-top: 0;
+}
+
+main textarea {
+	height: 110px;
+	resize: vertical;
+}
 
 /* Fila superior con los botones "Subir obra" y "Cerrar sesión" */
 .cabecera {
@@ -43,15 +67,34 @@ main textarea { height: 110px; resize: vertical; }
 	margin-bottom: 15px;
 }
 
-main button.icono { display: inline-flex; align-items: center; padding: 8px 10px; }
+main button.icono {
+	display: inline-flex;
+	align-items: center;
+	padding: 8px 10px;
+}
 
-#diario > summary { font-family: var(--fuente-titulos); font-size: 1.5rem; }
-#diario[open] > summary { margin-bottom: 12px; }
+#diario>summary {
+	font-family: var(--fuente-titulos);
+	font-size: 1.5rem;
+}
 
-.contador { text-align: right; font-size: 14px; margin: 5px 0 10px; }
-.contador.excedido { color: var(--error); }
+#diario[open]>summary {
+	margin-bottom: 12px;
+}
 
-.bloque { margin-bottom: 25px; }
+.contador {
+	text-align: right;
+	font-size: 14px;
+	margin: 5px 0 10px;
+}
+
+.contador.excedido {
+	color: var(--error);
+}
+
+.bloque {
+	margin-bottom: 25px;
+}
 
 /* Tarjetas de favoritos, listas y actividad */
 .fav, .lista {
@@ -66,13 +109,38 @@ main button.icono { display: inline-flex; align-items: center; padding: 8px 10px
 	border-radius: 6px;
 	background: #fbfaf7;
 }
-.fav .posicion { font-weight: bold; font-size: 18px; min-width: 24px; }
-.fav .titulo, .lista .titulo { flex: 1; min-width: 150px; font-weight: bold; }
-.fav a, .lista a { text-decoration: none; }
-.fav a:hover, .lista a:hover { text-decoration: underline; }
 
-.sustituir-caja { flex-basis: 100%; display: flex; gap: 8px; }
-.anadir-fila { display: flex; gap: 8px; margin-top: 10px; }
+.fav .posicion {
+	font-weight: bold;
+	font-size: 18px;
+	min-width: 24px;
+}
+
+.fav .titulo, .lista .titulo {
+	flex: 1;
+	min-width: 150px;
+	font-weight: bold;
+}
+
+.fav a, .lista a {
+	text-decoration: none;
+}
+
+.fav a:hover, .lista a:hover {
+	text-decoration: underline;
+}
+
+.sustituir-caja {
+	flex-basis: 100%;
+	display: flex;
+	gap: 8px;
+}
+
+.anadir-fila {
+	display: flex;
+	gap: 8px;
+	margin-top: 10px;
+}
 
 /* Etiqueta "Pública / Privada". Se redefine porque shelfie.css
    usa ".etiqueta" para los títulos de los formularios. */
@@ -85,18 +153,51 @@ main button.icono { display: inline-flex; align-items: center; padding: 8px 10px
 	border-radius: 10px;
 	background: var(--borde);
 }
-.etiqueta.publica { background: #cfe9d9; }
+
+.etiqueta.publica {
+	background: #cfe9d9;
+}
 
 /* Formulario para crear una lista */
-.form-lista { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 15px; }
-.form-lista input[type="text"] { flex: 1; min-width: 180px; width: auto; }
-/* El checkbox "Pública" no debe ocupar todo el ancho */
-.form-lista label { display: inline-flex; align-items: center; gap: 6px; font-weight: normal; margin: 0; }
-.form-lista input[type="checkbox"] { width: auto; padding: 0; }
+.form-lista {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	align-items: center;
+	margin-bottom: 15px;
+}
 
-#mensaje { min-height: 22px; font-weight: bold; }
-#mensaje.ok { color: var(--ok); }
-#mensaje.error { color: var(--error); }
+.form-lista input[type="text"] {
+	flex: 1;
+	min-width: 180px;
+	width: auto;
+}
+/* El checkbox "Pública" no debe ocupar todo el ancho */
+.form-lista label {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-weight: normal;
+	margin: 0;
+}
+
+.form-lista input[type="checkbox"] {
+	width: auto;
+	padding: 0;
+}
+
+#mensaje {
+	min-height: 22px;
+	font-weight: bold;
+}
+
+#mensaje.ok {
+	color: var(--ok);
+}
+
+#mensaje.error {
+	color: var(--error);
+}
 
 /* Cabecera del perfil: banner + foto superpuesta */
 /* Cabecera del perfil: banner, foto superpuesta, nombre y biografía debajo */
@@ -111,14 +212,15 @@ main button.icono { display: inline-flex; align-items: center; padding: 8px 10px
 
 .fila-perfil {
 	display: flex;
-	align-items: flex-end;   /* el nombre queda a la altura del borde inferior de la foto */
+	align-items: flex-end;
+	/* el nombre queda a la altura del borde inferior de la foto */
 	gap: 20px;
 	padding: 0 25px;
-	margin-top: -65px;       /* la foto sube sobre el banner */
+	margin-top: -65px; /* la foto sube sobre el banner */
 }
 
 #fotoPerfil {
-	position: relative;      /* para que pinte por encima del banner */
+	position: relative; /* para que pinte por encima del banner */
 	flex: 0 0 auto;
 	width: 130px;
 	height: 130px;
@@ -128,17 +230,29 @@ main button.icono { display: inline-flex; align-items: center; padding: 8px 10px
 	background-color: var(--borde);
 }
 
-#nombreUsuario { margin: 0 0 12px; font-size: 30px; }
+#nombreUsuario {
+	margin: 0 0 12px;
+	font-size: 30px;
+}
 
 .biografia {
 	margin: 16px 0 0;
 	padding: 0 25px;
-	white-space: pre-wrap;        /* respeta los saltos de línea */
+	white-space: pre-wrap; /* respeta los saltos de línea */
 	overflow-wrap: anywhere;
 }
 
-.editar-imagenes { display: flex; flex-wrap: wrap; gap: 25px; margin-bottom: 25px; }
-.editar-imagenes > div { flex: 1; min-width: 250px; }
+.editar-imagenes {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 25px;
+	margin-bottom: 25px;
+}
+
+.editar-imagenes>div {
+	flex: 1;
+	min-width: 250px;
+}
 
 /* Ocultar el texto "Ningún archivo seleccionado" */
 .editar-imagenes input[type="file"] {
@@ -148,39 +262,123 @@ main button.icono { display: inline-flex; align-items: center; padding: 8px 10px
 	white-space: nowrap;
 	color: transparent;
 }
-.editar-imagenes input[type="file"]::file-selector-button { color: var(--tinta); cursor: pointer; }
+
+.editar-imagenes input[type="file"]::file-selector-button {
+	color: var(--tinta);
+	cursor: pointer;
+}
 
 /* Calendario de obras completadas */
-.cab-calendario { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
-.cab-calendario h2 { margin: 0; text-transform: capitalize; }
-.calendario { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
-.cal-semana { text-align: center; font-weight: bold; font-size: 0.8rem; color: var(--tinta-suave); }
+.cab-calendario {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	margin-bottom: 12px;
+}
+
+.cab-calendario h2 {
+	margin: 0;
+	text-transform: capitalize;
+}
+
+.calendario {
+	display: grid;
+	grid-template-columns: repeat(7, minmax(0, 1fr));
+	gap: 4px;
+}
+
+.cal-semana {
+	text-align: center;
+	font-weight: bold;
+	font-size: 0.8rem;
+	color: var(--tinta-suave);
+}
+
 .cal-dia {
-	min-height: 84px; padding: 4px; overflow: hidden;
-	border: 1px solid var(--borde); border-radius: 6px; background: #fbfaf7; font-size: 0.8rem;
+	min-height: 84px;
+	padding: 4px;
+	overflow: hidden;
+	border: 1px solid var(--borde);
+	border-radius: 6px;
+	background: #fbfaf7;
+	font-size: 0.8rem;
 }
-.cal-dia.fuera { background: transparent; border-color: transparent; }
-.cal-dia.hoy { border-color: var(--ambar); border-width: 2px; }
-.cal-dia .num { color: var(--tinta-suave); }
+
+.cal-dia.fuera {
+	background: transparent;
+	border-color: transparent;
+}
+
+.cal-dia.hoy {
+	border-color: var(--ambar);
+	border-width: 2px;
+}
+
+.cal-dia .num {
+	color: var(--tinta-suave);
+}
+
 .cal-dia a {
-	display: block; margin-top: 3px; padding: 1px 5px; border-radius: 6px;
-	font-size: 0.75rem; text-decoration: none;
-	overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+	display: block;
+	margin-top: 3px;
+	padding: 1px 5px;
+	border-radius: 6px;
+	font-size: 0.75rem;
+	text-decoration: none;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
-.cal-dia a.tipo-libro      { background: var(--f-libro);      color: var(--c-libro); }
-.cal-dia a.tipo-pelicula   { background: var(--f-pelicula);   color: var(--c-pelicula); }
-.cal-dia a.tipo-serie      { background: var(--f-serie);      color: var(--c-serie); }
-.cal-dia a.tipo-videojuego { background: var(--f-videojuego); color: var(--c-videojuego); }
+
+.cal-dia a.tipo-libro {
+	background: var(--f-libro);
+	color: var(--c-libro);
+}
+
+.cal-dia a.tipo-pelicula {
+	background: var(--f-pelicula);
+	color: var(--c-pelicula);
+}
+
+.cal-dia a.tipo-serie {
+	background: var(--f-serie);
+	color: var(--c-serie);
+}
+
+.cal-dia a.tipo-videojuego {
+	background: var(--f-videojuego);
+	color: var(--c-videojuego);
+}
 
 /* Móvil: banner y foto más pequeños para que no se salgan */
-@media (max-width: 600px) {
-	#bannerPerfil { height: 160px; }
-	.fila-perfil { gap: 12px; padding: 0 12px; margin-top: -45px; }
-	#fotoPerfil { width: 90px; height: 90px; }
-	#nombreUsuario { font-size: 22px; margin-bottom: 8px; }
-	.biografia { padding: 0 12px; }
-	.cal-dia { min-height: 56px; }
-	.cal-dia a { font-size: 0.65rem; padding: 0 3px; }
+@media ( max-width : 600px) {
+	#bannerPerfil {
+		height: 160px;
+	}
+	.fila-perfil {
+		gap: 12px;
+		padding: 0 12px;
+		margin-top: -45px;
+	}
+	#fotoPerfil {
+		width: 90px;
+		height: 90px;
+	}
+	#nombreUsuario {
+		font-size: 22px;
+		margin-bottom: 8px;
+	}
+	.biografia {
+		padding: 0 12px;
+	}
+	.cal-dia {
+		min-height: 56px;
+	}
+	.cal-dia a {
+		font-size: 0.65rem;
+		padding: 0 3px;
+	}
 }
 </style>
 </head>
@@ -194,16 +392,21 @@ main button.icono { display: inline-flex; align-items: center; padding: 8px 10px
 	<main class="contenedor">
 
 		<div class="cabecera">
-			<button type="button" class="icono" aria-label="Configuración" title="Configuración"
+			<button type="button" class="icono" aria-label="Configuración"
+				title="Configuración"
 				onclick="window.location.href='configuracion.html'">
-				<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
-					stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-					<circle cx="12" cy="12" r="3"/>
-					<path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+				<svg viewBox="0 0 24 24" width="20" height="20" fill="none"
+					stroke="currentColor" stroke-width="2" stroke-linecap="round"
+					stroke-linejoin="round" aria-hidden="true">
+					<circle cx="12" cy="12" r="3" />
+					<path
+						d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
 				</svg>
 			</button>
-			<button type="button" onclick="window.location.href='subir-obra.html'">Subir obra</button>
-			<button type="button" onclick="window.location.href='mis-obras.html'">Mis obras</button>
+			<button type="button"
+				onclick="window.location.href='subir-obra.html'">Subir obra</button>
+			<button type="button" onclick="window.location.href='mis-obras.html'">Mis
+				obras</button>
 			<button id="cerrarSesion" class="secundario">Cerrar sesión</button>
 		</div>
 
@@ -223,66 +426,65 @@ main button.icono { display: inline-flex; align-items: center; padding: 8px 10px
 			</div>
 
 			<p id="biografiaTexto" class="biografia"></p>
-				<div class="datos-perfil">
-					<img id="fotoPerfil" alt="Foto de perfil">
-					<h1 id="nombreUsuario">Mi perfil</h1>
+			<div class="datos-perfil">
+				<img id="fotoPerfil" alt="Foto de perfil">
+				<h1 id="nombreUsuario">Mi perfil</h1>
+			</div>
+			</div>
+
+
+			<!-- ACTIVIDAD RECIENTE (H4.5) -->
+			<section class="tarjeta">
+				<h2>Actividad reciente</h2>
+				<p>Aquí puedes consultar tus últimas actividades en Shelfie.</p>
+
+				<div id="actividadReciente">
+					<p class="vacio">Cargando actividades...</p>
 				</div>
-			</div>
+			</section>
 
+			<!-- PROGRESO (H1.8) -->
+			<section class="tarjeta" id="tarjetaProgreso" hidden>
+				<h2>Mi progreso</h2>
+				<div id="listaProgreso"></div>
+			</section>
 
-		<!-- ACTIVIDAD RECIENTE (H4.5) -->
-		<section class="tarjeta">
-			<h2>Actividad reciente</h2>
-			<p>Aquí puedes consultar tus últimas actividades en Shelfie.</p>
+			<!-- DIARIO: calendario de obras completadas -->
+			<details class="tarjeta" id="diario">
+				<summary>Diario</summary>
+				<div class="cab-calendario">
+					<button type="button" id="mesAnterior" class="secundario"
+						aria-label="Mes anterior">←</button>
+					<h2 id="tituloMes"></h2>
+					<button type="button" id="mesSiguiente" class="secundario"
+						aria-label="Mes siguiente">→</button>
+				</div>
+				<div id="calendario" class="calendario"></div>
+			</details>
 
-			<div id="actividadReciente">
-				<p class="vacio">Cargando actividades...</p>
-			</div>
-		</section>
-		
-				<!-- PROGRESO (H1.8) -->
-		<section class="tarjeta" id="tarjetaProgreso" hidden>
-			<h2>Mi progreso</h2>
-			<div id="listaProgreso"></div>
-		</section>
-		
-		<!-- DIARIO: calendario de obras completadas -->
-		<details class="tarjeta" id="diario">
-			<summary>Diario</summary>
-			<div class="cab-calendario">
-				<button type="button" id="mesAnterior" class="secundario" aria-label="Mes anterior">←</button>
-				<h2 id="tituloMes"></h2>
-				<button type="button" id="mesSiguiente" class="secundario" aria-label="Mes siguiente">→</button>
-			</div>
-			<div id="calendario" class="calendario"></div>
-		</details>
+			<!-- FAVORITOS (H4.1) -->
+			<section class="tarjeta">
+				<h2>Mis favoritos</h2>
+				<p>Puedes fijar hasta 5 obras por categoría.</p>
+				<div id="favoritos"></div>
+			</section>
 
-		<!-- FAVORITOS (H4.1) -->
-		<section class="tarjeta">
-			<h2>Mis favoritos</h2>
-			<p>Puedes fijar hasta 5 obras por categoría.</p>
-			<div id="favoritos"></div>
-		</section>
+			<!-- LISTAS (H1.6 y H1.7) -->
+			<section class="tarjeta">
+				<h2>Mis listas</h2>
 
-		<!-- LISTAS (H1.6 y H1.7) -->
-		<section class="tarjeta">
-			<h2>Mis listas</h2>
+				<form id="formLista" class="form-lista">
+					<input type="text" id="nombreLista" maxlength="100"
+						placeholder="Nombre de la nueva lista" required> <input
+						type="text" id="descripcionLista" maxlength="500"
+						placeholder="Descripción de la lista (opcional)"> <label>
+						<input type="checkbox" id="publicaLista"> Pública
+					</label>
+					<button type="submit">Crear lista</button>
+				</form>
 
-			<form id="formLista" class="form-lista">
-				<input type="text" id="nombreLista" maxlength="100"
-					placeholder="Nombre de la nueva lista" required>
-				<input type="text" id="descripcionLista" maxlength="500"
-					placeholder="Descripción de la lista (opcional)">
-
-				<label>
-					<input type="checkbox" id="publicaLista"> Pública
-				</label>
-				<button type="submit">Crear lista</button>
-			</form>
-
-			<div id="listas"></div>
-		</section>
-
+				<div id="listas"></div>
+			</section>
 	</main>
 
 	<script>
@@ -500,8 +702,8 @@ main button.icono { display: inline-flex; align-items: center; padding: 8px 10px
 	        celda.appendChild(crear("div", d, "num"));
 
 	        (porDia[d] || []).forEach(o => {
-	            const enlace = crear("a", o.titulo, "tipo-" + o.tipo.toLowerCase());
-	            enlace.href = "work.html?id=" + o.obraId;
+	            const enlace = crear("a", o.titulo);
+	            enlace.href = "/work.html?id=" + encodeURIComponent(o.obraId);
 	            enlace.title = o.titulo;
 	            celda.appendChild(enlace);
 	        });
@@ -604,7 +806,18 @@ main button.icono { display: inline-flex; align-items: center; padding: 8px 10px
 
         const titulo = crear("span", undefined, "titulo");
         const enlace = crear("a", fav.titulo);
-        enlace.href = "work.html?id=" + fav.obraId;
+
+        if (
+            fav.fuenteApi === "TMDB" &&
+            fav.idExterno != null &&
+            ["PELICULA", "SERIE"].includes(fav.tipo)
+        ) {
+            enlace.href = "/work.html?fuente=TMDB"
+                + "&tipo=" + encodeURIComponent(fav.tipo)
+                + "&idExterno=" + encodeURIComponent(fav.idExterno);
+        } else {
+            enlace.href = "/work.html?id=" + encodeURIComponent(fav.obraId);
+        }
         titulo.appendChild(enlace);
         tarjeta.appendChild(titulo);
 
