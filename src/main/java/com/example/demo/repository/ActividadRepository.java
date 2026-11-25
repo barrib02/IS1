@@ -9,9 +9,11 @@ import com.example.demo.entity.Actividad;
 
 public interface ActividadRepository extends JpaRepository<Actividad, Long> {
 
-    // Obtener las actividades de un usuario,
-    // ordenadas desde la más reciente.
-    List<Actividad> findByUsuarioIdOrderByFechaDesc(Long usuarioId);
+	// Obtener las actividades de un usuario,
+	// ordenadas desde la más reciente.
+	List<Actividad> findByUsuarioIdOrderByFechaDesc(Long usuarioId);
 
-    void deleteByUsuarioId(Long usuarioId);
+	List<Actividad> findByUsuarioIdOrderByFechaDescIdDesc(Long usuarioId);
+
+	void deleteByUsuarioId(Long usuarioId);
 }

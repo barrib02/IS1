@@ -9,6 +9,7 @@
 <link rel="icon" href="/images/logo.svg">
 <link rel="stylesheet" href="/css/shelfie.css">
 <script src="/js/shelfie.js"></script>
+<script src="/js/estados.js"></script>
 
 <style>
 /* Ficha externa de películas y series de TMDB */
@@ -334,10 +335,14 @@
                 $("contenido").appendChild(obtenerFormularioExperiencia());
 
                 prepararExperiencia();
+                
+                if (tipoObra === "SERIE") {
+                    await prepararProgresoSerie(datos);
+                }
 
                 // Comprobamos si la obra ya tiene una referencia en Neon.
                 try {
-                    const referenciaExistente = await consultarReferenciaTmdb();
+                    const referenciaExistente = await consultarReferenciaExterna();
 
                     if (referenciaExistente !== null) {
                         await Promise.all([
@@ -357,11 +362,11 @@
             }
         
 
-        async function consultarReferenciaTmdb() {
+        async function consultarReferenciaExterna() {
 
 
             // Consultamos referencias de TMDB y Google Books.
-            if (!["TMDB", "GOOGLE_BOOKS"].includes(fuenteExterna)) {
+            if (!["TMDB", "GOOGLE_BOOKS", "RAWG"].includes(fuenteExterna)) {
                 return null;
             }
 
@@ -397,12 +402,12 @@
 
         // Obtiene o crea la referencia de TMDB en Neon.
         // Solo debe llamarse cuando el usuario guarda una interacción.
-        async function asegurarReferenciaTmdb() {
+        async function asegurarReferenciaExterna() {
 
 
             // Las obras internas ya tienen identificador de Neon.
             // TMDB y Google Books utilizan referencias externas.
-            if (!["TMDB", "GOOGLE_BOOKS"].includes(fuenteExterna)) {
+            if (!["TMDB", "GOOGLE_BOOKS", "RAWG"].includes(fuenteExterna)) {
                 return obraId;
             }
 
@@ -560,7 +565,7 @@
                 prepararExperiencia();
 
                 // Recuperamos las interacciones si el libro ya existe en Neon.
-                const referenciaExistente = await consultarReferenciaTmdb();
+                const referenciaExistente = await consultarReferenciaExterna();
 
 
                 if (referenciaExistente !== null) {
@@ -588,7 +593,214 @@
         // ======================================================
         // 2) INICIO DE LA PÁGINA
         // ======================================================
+async function cargarFichaRawg() {
 
+    // Validamos la referencia externa.
+    if (
+        fuenteExterna !== "RAWG" ||
+        tipoExterno !== "VIDEOJUEGO" ||
+        !/^[0-9]+$/.test(idExterno || "")
+    ) {
+        $("contenido").textContent =
+            "La referencia del videojuego no es válida.";
+        return;
+    }
+
+    $("contenido").textContent = "Cargando videojuego…";
+
+    try {
+
+        const ruta = "/api/rawg/videojuego/"
+            + encodeURIComponent(idExterno);
+
+        const respuesta = await Shelfie.api(ruta);
+
+        if (!respuesta.ok || !respuesta.datos?.name) {
+            $("contenido").textContent =
+                "No se ha podido cargar el videojuego.";
+            return;
+        }
+
+        const datos = respuesta.datos;
+
+        const titulo = datos.name;
+        const fecha = datos.released || "Desconocida";
+
+        const desarrolladores = (datos.developers || [])
+            .map(d => d.name).join(", ");
+
+        const distribuidoras = (datos.publishers || [])
+            .map(p => p.name).join(", ");
+
+        const descripcion = datos.description_raw ||
+            "Sin descripción disponible.";
+
+        const generos = (datos.genres || [])
+            .map(g => g.name);
+
+        const plataformas = (datos.platforms || [])
+            .map(p => p.platform?.name)
+            .filter(Boolean);
+
+        const tiendas = (datos.stores || [])
+            .map(t => t.store?.name)
+            .filter(Boolean);
+
+        function pintarChips(elementos) {
+
+            return elementos.length
+                ? elementos.map(elemento => `
+                    <span class="chip">
+                        ${Shelfie.esc(elemento)}
+                    </span>
+                `).join(" ")
+                : "Sin información disponible";
+        }
+
+        const imagen = datos.background_image || "";
+
+        const portadaHTML = imagen.startsWith("https://")
+            ? `<img
+                src="${Shelfie.esc(imagen)}"
+                alt="Portada de ${Shelfie.esc(titulo)}"
+                class="ficha-tmdb-poster">`
+            : "";
+
+        document.title = titulo + " - Shelfie";
+
+        $("contenido").innerHTML = `
+            <article class="tarjeta">
+
+                <div class="titulo-fila">
+                    <h1>${Shelfie.esc(titulo)}</h1>
+                    <span id="zona-fav"></span>
+                </div>
+
+                <div class="ficha-tmdb-contenido">
+
+                    <div>${portadaHTML}</div>
+
+                    <div class="ficha-tmdb-datos">
+
+                        <p>
+                            <b>Tipo:</b>
+                            ${Shelfie.chipTipo("VIDEOJUEGO")}
+                        </p>
+
+                        <p>
+                            <b>Fecha de lanzamiento:</b>
+                            ${Shelfie.esc(fecha)}
+                        </p>
+
+                        <p>
+                            <b>Desarrolladores:</b>
+                            ${Shelfie.esc(
+                                desarrolladores || "Desconocidos"
+                            )}
+                        </p>
+
+                        <p>
+                            <b>Distribuidoras:</b>
+                            ${Shelfie.esc(
+                                distribuidoras || "Desconocidas"
+                            )}
+                        </p>
+
+                        <p><b>Géneros:</b></p>
+                        <div>${pintarChips(generos)}</div>
+
+                        <h3>Descripción</h3>
+
+                        <p style="white-space:pre-line">
+                            ${Shelfie.esc(descripcion)}
+                        </p>
+
+                        <h3>Plataformas</h3>
+
+                        <div>${pintarChips(plataformas)}</div>
+
+                        <h3>Tiendas</h3>
+
+                        <div>${pintarChips(tiendas)}</div>
+
+                        <p class="msg">
+                            La disponibilidad y el precio pueden
+                            variar según la tienda y el país.
+                        </p>
+
+                    </div>
+
+                </div>
+
+                <p class="msg" style="margin-top:20px">
+                    Información obtenida de
+                    <a href="https://rawg.io/"
+                       target="_blank"
+                       rel="noopener noreferrer">
+                        RAWG
+                    </a>.
+                </p>
+
+            </article>
+        `;
+
+    } catch (error) {
+
+        $("contenido").textContent =
+            "No se ha podido cargar la información del videojuego.";
+
+        return;
+    }
+
+    // Reutilizamos las interacciones existentes de Shelfie.
+    const perfil = await Shelfie.obtenerPerfil();
+
+    if (!perfil) {
+
+        const aviso = document.createElement("p");
+
+        aviso.innerHTML =
+            'Inicia sesión para valorar, reseñar y guardar ' +
+            'este videojuego. ' +
+            '<a href="/login.html">Iniciar sesión</a>';
+
+        $("contenido").appendChild(aviso);
+
+        return;
+    }
+
+    usuarioId = perfil.id;
+    tipoObra = "VIDEOJUEGO";
+
+    $("contenido").appendChild(
+        obtenerFormularioExperiencia()
+    );
+
+    prepararExperiencia();
+
+    try {
+
+        const referenciaExistente =
+            await consultarReferenciaExterna();
+
+        if (referenciaExistente !== null) {
+
+            await Promise.all([
+                cargarInteracciones(),
+                cargarProgreso()
+            ]);
+        }
+
+        await pintarAcciones();
+
+    } catch (error) {
+
+        mostrar(
+            "No se han podido recuperar las interacciones.",
+            false
+        );
+    }
+}
         async function iniciar() {
 
             // Las fichas externas se consultan directamente en TMDB.
@@ -600,6 +812,11 @@
             // Las fichas externas de libros se consultan en Google Books.
             if (fuenteExterna === "GOOGLE_BOOKS") {
                 await cargarFichaGoogleBooks();
+                return;
+            }
+         // Las fichas externas de videojuegos se consultan en RAWG.
+            if (fuenteExterna === "RAWG") {
+                await cargarFichaRawg();
                 return;
             }
 
@@ -635,9 +852,9 @@
             const obra = respuestaObra.datos;
 
             if (
-                ["GOOGLE_BOOKS", "TMDB"].includes(obra.fuenteApi) &&
+                ["GOOGLE_BOOKS", "TMDB", "RAWG"].includes(obra.fuenteApi) &&
                 obra.idExterno &&
-                ["LIBRO", "PELICULA", "SERIE"].includes(obra.tipo)
+                ["LIBRO", "PELICULA", "SERIE", "VIDEOJUEGO"].includes(obra.tipo)
             ) {
                 const parametros = new URLSearchParams({
                     fuente: obra.fuenteApi,
@@ -692,17 +909,34 @@
                     <div class="grupo">
                         <label for="estado">Estado</label>
                         <select id="estado">
-                            <option value="">Selecciona un estado…</option>
-                            <option value="PENDIENTE">Pendiente</option>
-                            <option value="EN_CURSO">En curso</option>
-                            <option value="COMPLETADA">Completada</option>
-                            <option value="ABANDONADA">Abandonada</option>
+                        <option value="">Selecciona un estado…</option>
+
+                        <option value="PENDIENTE">
+                            ${EstadosShelfie.texto(tipoObra, "PENDIENTE")}
+                        </option>
+
+                        <option value="EN_CURSO">
+                            ${EstadosShelfie.texto(tipoObra, "EN_CURSO")}
+                        </option>
+
+                        <option value="COMPLETADA">
+                            ${EstadosShelfie.texto(tipoObra, "COMPLETADA")}
+                        </option>
+
+                        <option value="ABANDONADA">
+                            ${EstadosShelfie.texto(tipoObra, "ABANDONADA")}
+                        </option>
                         </select>
 
                         <div class="grupo" id="grupoFecha" hidden>
-                            <label for="fechaCompletada">
-                                Fecha en la que la completaste
-                            </label>
+                        <label for="fechaCompletada">
+                        ${{
+                            LIBRO: "Fecha en la que terminaste de leerlo",
+                            PELICULA: "Fecha en la que la viste",
+                            SERIE: "Fecha en la que terminaste de verla",
+                            VIDEOJUEGO: "Fecha en la que lo completaste"
+                        }[tipoObra] || "Fecha de finalización"}
+                    </label>
                             <input type="date" id="fechaCompletada"
                                    style="max-width:220px">
                         </div>
@@ -718,12 +952,22 @@
 
                         <div id="progreso-serie" hidden>
                             <label for="temporada">Temporada actual</label>
-                            <input type="number" id="temporada" min="1">
+                            ${fuenteExterna === "TMDB" && tipoObra === "SERIE"
+                                ? `<select id="temporada" disabled>
+                                       <option value="">Cargando temporadas…</option>
+                                   </select>`
+                                : `<input type="number" id="temporada" min="1">`
+                            }
 
                             <label for="capitulo" style="margin-top:8px">
                                 Capítulo actual
                             </label>
-                            <input type="number" id="capitulo" min="1">
+                                ${fuenteExterna === "TMDB" && tipoObra === "SERIE"
+                                    ? `<select id="capitulo" disabled>
+                                           <option value="">Selecciona una temporada</option>
+                                       </select>`
+                                    : `<input type="number" id="capitulo" min="1">`
+                                }
                         </div>
 
                         <button type="button" class="btn"
@@ -937,9 +1181,9 @@
 
             // Creamos la referencia externa solo cuando el usuario
             // selecciona un estado para guardar.
-            if (["TMDB", "GOOGLE_BOOKS"].includes(fuenteExterna)) {
+            if (["TMDB", "GOOGLE_BOOKS", "RAWG"].includes(fuenteExterna)) {
                 try {
-                    await asegurarReferenciaTmdb();
+                    await asegurarReferenciaExterna();
                 } catch (error) {
                     mostrar(
                         "No se ha podido guardar el estado: " + error.message,
@@ -966,7 +1210,11 @@
             });
 
             r.ok
-                ? mostrar("Estado actualizado.", true)
+            ? mostrar(
+            	    "Estado actualizado: " +
+            	    EstadosShelfie.texto(tipoObra, estado) + ".",
+            	    true
+            	)
                 : mostrar(
                     textoError(
                         r,
@@ -1031,8 +1279,8 @@
 
                 // Para TMDB y Google Books, creamos la referencia
                 // únicamente al guardar una valoración o reseña.
-                if (["TMDB", "GOOGLE_BOOKS"].includes(fuenteExterna)) {
-                    await asegurarReferenciaTmdb();
+                if (["TMDB", "GOOGLE_BOOKS", "RAWG"].includes(fuenteExterna)) {
+                    await asegurarReferenciaExterna();
                 }
 
                 console.log("Fuente:", fuenteExterna);
@@ -1139,7 +1387,145 @@
         // ======================================================
         // 6) PROGRESO DE LECTURA Y SERIES
         // ======================================================
+// Carga las temporadas reales de la serie.
+async function prepararProgresoSerie(datos) {
 
+    const selector = $("temporada");
+
+    $("guardarProgreso").disabled = true;
+
+    selector.replaceChildren(
+        new Option("Selecciona una temporada", "")
+    );
+
+    const temporadas = Array.isArray(datos.seasons)
+        ? datos.seasons.filter(t =>
+            Number.isInteger(t.season_number) &&
+            t.season_number > 0 &&
+            t.episode_count > 0
+        )
+        : [];
+
+    temporadas.sort(
+        (a, b) => a.season_number - b.season_number
+    );
+
+    for (const temporada of temporadas) {
+
+        selector.add(new Option(
+            "Temporada " + temporada.season_number,
+            temporada.season_number
+        ));
+    }
+
+    selector.disabled = temporadas.length === 0;
+
+    selector.addEventListener("change", async () => {
+        await cargarEpisodiosTmdb();
+    });
+
+    $("capitulo").addEventListener("change", () => {
+        $("guardarProgreso").disabled =
+            !$("capitulo").value;
+    });
+
+    if (temporadas.length === 0) {
+
+        mostrar(
+            "No hay temporadas disponibles en TMDB.",
+            false,
+            "msgProgreso"
+        );
+    }
+}
+
+
+// Carga únicamente los episodios de la temporada elegida.
+async function cargarEpisodiosTmdb(capituloGuardado = null) {
+
+    const temporada = $("temporada").value;
+    const selector = $("capitulo");
+
+    selector.disabled = true;
+    $("guardarProgreso").disabled = true;
+
+    selector.replaceChildren(
+        new Option("Selecciona un capítulo", "")
+    );
+
+    if (!temporada) {
+        return;
+    }
+
+    try {
+
+        const r = await Shelfie.api(
+            "/api/tmdb/serie/" +
+            encodeURIComponent(idExterno) +
+            "/temporada/" +
+            encodeURIComponent(temporada)
+        );
+
+        // Ignoramos respuestas de una temporada anterior.
+        if ($("temporada").value !== temporada) {
+            return;
+        }
+
+        if (!r.ok || !Array.isArray(r.datos?.episodes)) {
+            throw new Error(
+                "No se han podido cargar los capítulos."
+            );
+        }
+
+        const episodios = r.datos.episodes
+            .filter(e =>
+                Number.isInteger(e.episode_number) &&
+                e.episode_number > 0
+            )
+            .sort((a, b) =>
+                a.episode_number - b.episode_number
+            );
+
+        for (const episodio of episodios) {
+
+            selector.add(new Option(
+                "Capítulo " + episodio.episode_number +
+                (episodio.name ? " - " + episodio.name : ""),
+                episodio.episode_number
+            ));
+        }
+
+        selector.disabled = episodios.length === 0;
+
+        if (capituloGuardado != null) {
+            selector.value = String(capituloGuardado);
+        }
+
+        $("guardarProgreso").disabled =
+            !selector.value;
+
+        mostrar(
+            episodios.length + " capítulos disponibles.",
+            true,
+            "msgProgreso"
+        );
+
+    } catch (error) {
+
+        if ($("temporada").value !== temporada) {
+            return;
+        }
+
+        mostrar(
+            "No se han podido cargar los capítulos.",
+            false,
+            "msgProgreso"
+        );
+    }
+}
+        	
+        	
+        	
         async function cargarProgreso() {
 
             const r = await Shelfie.api(
@@ -1160,14 +1546,24 @@
                         r.datos.paginasLeidas;
                 }
 
-                if (r.datos.temporadaActual != null) {
-                    $("temporada").value =
-                        r.datos.temporadaActual;
-                }
+                if (tipoObra === "SERIE") {
 
-                if (r.datos.capituloActual != null) {
-                    $("capitulo").value =
-                        r.datos.capituloActual;
+                    if (r.datos.temporadaActual != null) {
+                        $("temporada").value =
+                            r.datos.temporadaActual;
+                    }
+
+                    if (fuenteExterna === "TMDB") {
+
+                        await cargarEpisodiosTmdb(
+                            r.datos.capituloActual
+                        );
+
+                    } else if (r.datos.capituloActual != null) {
+
+                        $("capitulo").value =
+                            r.datos.capituloActual;
+                    }
                 }
             }
 
@@ -1180,12 +1576,25 @@
         }
 
         async function guardarProgreso() {
+        	if (tipoObra === "SERIE" &&
+        	        (!$("temporada").value ||
+        	         !$("capitulo").value)) {
 
-            // Para las obras externas, obtenemos o creamos su
+        	    mostrar(
+        	        "Selecciona una temporada y un capítulo.",
+        	        false,
+        	        "msgProgreso"
+        	    );
+
+        	    return;
+        	}
+            
+        	
+        	// Para las obras externas, obtenemos o creamos su
             // referencia en Neon antes de guardar el progreso.
-            if (["TMDB", "GOOGLE_BOOKS"].includes(fuenteExterna)) {
+            if (["TMDB", "GOOGLE_BOOKS", "RAWG"].includes(fuenteExterna)) {
                 try {
-                    await asegurarReferenciaTmdb();
+                    await asegurarReferenciaExterna();
                 } catch (error) {
                     mostrar(
                         "No se ha podido guardar el progreso: " + error.message,
@@ -1330,9 +1739,9 @@
 
                 // Creamos la referencia externa únicamente
                 // cuando el usuario pulsa el botón de favoritos.
-                if (["TMDB", "GOOGLE_BOOKS"].includes(fuenteExterna)) {
+                if (["TMDB", "GOOGLE_BOOKS", "RAWG"].includes(fuenteExterna)) {
                     try {
-                        await asegurarReferenciaTmdb();
+                        await asegurarReferenciaExterna();
                     } catch (error) {
                         aviso(
                             "No se ha podido guardar el favorito: " + error.message,
@@ -1481,9 +1890,9 @@
                     
                         // Creamos la referencia externa solo
                         // cuando el usuario modifica una lista.
-                        if (["TMDB", "GOOGLE_BOOKS"].includes(fuenteExterna)) {
+                        if (["TMDB", "GOOGLE_BOOKS", "RAWG"].includes(fuenteExterna)) {
                             try {
-                                await asegurarReferenciaTmdb();
+                                await asegurarReferenciaExterna();
                             } catch (error) {
                                 aviso(
                                     "No se ha podido modificar la lista: " + error.message,

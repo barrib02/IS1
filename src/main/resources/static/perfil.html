@@ -7,6 +7,7 @@
 <link rel="icon" href="/images/logo.svg">
 <link rel="stylesheet" href="/css/shelfie.css">
 <script src="/js/shelfie.js"></script>
+<script src="/js/estados.js"></script>
 
 <!-- Solo lo específico del perfil. Lo común (fondo, tarjetas, barra...) viene de shelfie.css.
      IMPORTANTE: aquí ya NO hay "body { padding: 20px }", que era lo que daba margen a la barra. -->
@@ -426,65 +427,60 @@ main button.icono {
 			</div>
 
 			<p id="biografiaTexto" class="biografia"></p>
-			<div class="datos-perfil">
-				<img id="fotoPerfil" alt="Foto de perfil">
-				<h1 id="nombreUsuario">Mi perfil</h1>
+		</section>
+
+		<!-- ACTIVIDAD RECIENTE (H4.5) -->
+		<section class="tarjeta">
+			<h2>Actividad reciente</h2>
+			<p>Aquí puedes consultar tus últimas actividades en Shelfie.</p>
+
+			<div id="actividadReciente">
+				<p class="vacio">Cargando actividades...</p>
 			</div>
+		</section>
+
+		<!-- PROGRESO (H1.8) -->
+		<section class="tarjeta" id="tarjetaProgreso" hidden>
+			<h2>Mi progreso</h2>
+			<div id="listaProgreso"></div>
+		</section>
+
+		<!-- DIARIO: calendario de obras completadas -->
+		<details class="tarjeta" id="diario">
+			<summary>Diario</summary>
+			<div class="cab-calendario">
+				<button type="button" id="mesAnterior" class="secundario"
+					aria-label="Mes anterior">←</button>
+				<h2 id="tituloMes"></h2>
+				<button type="button" id="mesSiguiente" class="secundario"
+					aria-label="Mes siguiente">→</button>
 			</div>
+			<div id="calendario" class="calendario"></div>
+		</details>
 
+		<!-- FAVORITOS (H4.1) -->
+		<section class="tarjeta">
+			<h2>Mis favoritos</h2>
+			<p>Puedes fijar hasta 5 obras por categoría.</p>
+			<div id="favoritos"></div>
+		</section>
 
-			<!-- ACTIVIDAD RECIENTE (H4.5) -->
-			<section class="tarjeta">
-				<h2>Actividad reciente</h2>
-				<p>Aquí puedes consultar tus últimas actividades en Shelfie.</p>
+		<!-- LISTAS (H1.6 y H1.7) -->
+		<section class="tarjeta">
+			<h2>Mis listas</h2>
 
-				<div id="actividadReciente">
-					<p class="vacio">Cargando actividades...</p>
-				</div>
-			</section>
+			<form id="formLista" class="form-lista">
+				<input type="text" id="nombreLista" maxlength="100"
+					placeholder="Nombre de la nueva lista" required> <input
+					type="text" id="descripcionLista" maxlength="500"
+					placeholder="Descripción de la lista (opcional)"> <label>
+					<input type="checkbox" id="publicaLista"> Pública
+				</label>
+				<button type="submit">Crear lista</button>
+			</form>
 
-			<!-- PROGRESO (H1.8) -->
-			<section class="tarjeta" id="tarjetaProgreso" hidden>
-				<h2>Mi progreso</h2>
-				<div id="listaProgreso"></div>
-			</section>
-
-			<!-- DIARIO: calendario de obras completadas -->
-			<details class="tarjeta" id="diario">
-				<summary>Diario</summary>
-				<div class="cab-calendario">
-					<button type="button" id="mesAnterior" class="secundario"
-						aria-label="Mes anterior">←</button>
-					<h2 id="tituloMes"></h2>
-					<button type="button" id="mesSiguiente" class="secundario"
-						aria-label="Mes siguiente">→</button>
-				</div>
-				<div id="calendario" class="calendario"></div>
-			</details>
-
-			<!-- FAVORITOS (H4.1) -->
-			<section class="tarjeta">
-				<h2>Mis favoritos</h2>
-				<p>Puedes fijar hasta 5 obras por categoría.</p>
-				<div id="favoritos"></div>
-			</section>
-
-			<!-- LISTAS (H1.6 y H1.7) -->
-			<section class="tarjeta">
-				<h2>Mis listas</h2>
-
-				<form id="formLista" class="form-lista">
-					<input type="text" id="nombreLista" maxlength="100"
-						placeholder="Nombre de la nueva lista" required> <input
-						type="text" id="descripcionLista" maxlength="500"
-						placeholder="Descripción de la lista (opcional)"> <label>
-						<input type="checkbox" id="publicaLista"> Pública
-					</label>
-					<button type="submit">Crear lista</button>
-				</form>
-
-				<div id="listas"></div>
-			</section>
+			<div id="listas"></div>
+		</section>
 	</main>
 
 	<script>
@@ -499,6 +495,8 @@ main button.icono {
 
     let favoritos = [];
     let todasObras = [];
+    let usuarioActualId = null;
+    let estadosFavoritos = new Map();
 
     // Llama a la API. Si no hay sesión, redirige al login.
     // Si el servidor devuelve un error, lanza una excepción con su mensaje.
@@ -582,7 +580,7 @@ main button.icono {
 
 	async function cargarPerfil() {
 	    const perfil = await api("/api/perfil");
-
+	    usuarioActualId = perfil.id;
 	    document.getElementById("nombreUsuario").textContent = perfil.nombre;
 	    document.getElementById("biografiaTexto").textContent =
 	        perfil.biografia || "Todavía no has escrito una biografía.";
@@ -599,45 +597,128 @@ main button.icono {
 	        banner.style.display = "block";
 	    }
 	}
-    // ---------- Actividad reciente (H4.5) ----------
+	// ---------- Actividad reciente (H4.5) ----------
 
-    async function cargarActividad() {
-        const actividades = await api("/api/actividad");
-        const contenedor = document.getElementById("actividadReciente");
+	async function cargarActividad() {
 
-        contenedor.innerHTML = "";
+	    const contenedor =
+	        document.getElementById("actividadReciente");
 
-        if (actividades.length === 0) {
-            contenedor.appendChild(crear(
-                "p",
-                "Todavía no tienes actividades recientes.",
-                "vacio"
-            ));
-            return;
-        }
+	    contenedor.innerHTML = "";
 
-        // Mostramos las 10 actividades más recientes.
-        actividades.slice(0, 10).forEach(actividad => {
+	    try {
 
-            const fila = crear("div", undefined, "lista");
+	        const actividades = await api("/api/actividad");
 
-            const contenido = crear("div");
+	        if (!Array.isArray(actividades)) {
+	            throw new Error("Respuesta incorrecta");
+	        }
 
-            contenido.appendChild(
-                crear("p", actividad.descripcion)
-            );
+	        if (actividades.length === 0) {
 
-            const fecha = new Date(actividad.fecha);
+	            contenedor.appendChild(crear(
+	                "p",
+	                "Todavía no tienes actividades recientes.",
+	                "vacio"
+	            ));
 
-            contenido.appendChild(
-                crear("small", fecha.toLocaleString("es-ES"))
-            );
+	            return;
+	        }
 
-            fila.appendChild(contenido);
+	        const nombresActividad = {
+	            ESTADO: "Cambio de estado",
+	            VALORACION: "Valoración",
+	            RESENA: "Reseña",
+	            FAVORITO: "Favorito",
+	            PROGRESO: "Progreso",
+	            LISTA: "Lista"
+	        };
 
-            contenedor.appendChild(fila);
-        });
-    }
+	        actividades.forEach(actividad => {
+
+	            const fila = crear("div", undefined, "lista");
+	            const contenido = crear("div");
+
+	            contenido.style.flex = "1";
+
+	            // Tipo de acción.
+	            contenido.appendChild(crear(
+	                "span",
+	                nombresActividad[actividad.tipo]
+	                    || actividad.tipo
+	                    || "Actividad",
+	                "chip"
+	            ));
+
+	            // Información de la obra.
+	            if (actividad.tituloObra) {
+
+	                const titulo = crear("p");
+
+	                const enlace = crear(
+	                    "a",
+	                    actividad.tituloObra
+	                );
+
+	                enlace.href = "/work.html?id=" +
+	                    encodeURIComponent(actividad.obraId);
+
+	                enlace.style.fontWeight = "bold";
+
+	                titulo.appendChild(enlace);
+
+	                contenido.appendChild(titulo);
+
+	                if (actividad.tipoObra) {
+
+	                    contenido.appendChild(crear(
+	                        "span",
+	                        Shelfie.NOMBRE_TIPO[actividad.tipoObra]
+	                            || actividad.tipoObra,
+	                        "chip"
+	                    ));
+	                }
+
+	            } else if (actividad.obraId != null) {
+
+	                contenido.appendChild(crear(
+	                    "p",
+	                    "Obra no disponible",
+	                    "vacio"
+	                ));
+	            }
+
+	            // Descripción de la acción.
+	            contenido.appendChild(crear(
+	                "p",
+	                actividad.descripcion || ""
+	            ));
+
+	            // Fecha y hora.
+	            const fecha = new Date(actividad.fecha);
+
+	            contenido.appendChild(crear(
+	                "small",
+	                actividad.fecha && !isNaN(fecha.getTime())
+	                    ? fecha.toLocaleString("es-ES")
+	                    : "Fecha no disponible"
+	            ));
+
+	            fila.appendChild(contenido);
+	            contenedor.appendChild(fila);
+	        });
+
+	    } catch (error) {
+
+	        contenedor.innerHTML = "";
+
+	        contenedor.appendChild(crear(
+	            "p",
+	            "No se ha podido cargar el historial de actividad.",
+	            "vacio"
+	        ));
+	    }
+	}
 	
 	// ---------- Progreso -----------
 	async function cargarProgreso() {
@@ -651,11 +732,13 @@ main button.icono {
 				: "Temporada " + p.temporadaActual + " · Capítulo " + p.capituloActual;
 			return `<div class="lista-fila">
 				<span>${Shelfie.chipTipo(p.tipo)} <a href="/work.html?id=${p.obraId}">${Shelfie.esc(p.titulo)}</a></span>
-				<span>${Shelfie.esc(detalle)}</span>
+				<span class="chip">
+			    ${Shelfie.esc(EstadosShelfie.texto(p.tipo, "EN_CURSO"))}
+			</span>
+			<span>${Shelfie.esc(detalle)}</span>
 			</div>`;
 		}).join("");
 	}
-	cargarProgreso();
 	
 	// ---------- Calendario de obras completadas ----------
 
@@ -734,9 +817,16 @@ main button.icono {
     // ---------- Favoritos ----------
 
     async function cargarFavoritos() {
-        favoritos = await api("/api/favoritos");
-        pintarFavoritos();
-    }
+
+    favoritos = await api("/api/favoritos");
+
+    estadosFavoritos = await EstadosShelfie.obtenerVarios(
+        usuarioActualId,
+        favoritos.map(fav => fav.obraId)
+    );
+
+    pintarFavoritos();
+}
 
     // Obras de un tipo que todavía no son favoritas.
     function obrasDisponibles(tipo) {
@@ -820,6 +910,20 @@ main button.icono {
         }
         titulo.appendChild(enlace);
         tarjeta.appendChild(titulo);
+        const estado = estadosFavoritos.get(String(fav.obraId));
+
+        if (estado === "NO_DISPONIBLE") {
+
+            tarjeta.appendChild(
+                crear("span", "Estado no disponible", "chip")
+            );
+
+        } else {
+
+            tarjeta.appendChild(
+                EstadosShelfie.crearEtiqueta(fav.tipo, estado)
+            );
+        }
 
         const subir = boton("↑", "secundario", () =>
             mover(tipo, items, indice, -1));

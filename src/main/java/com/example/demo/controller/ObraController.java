@@ -29,6 +29,9 @@ import com.example.demo.entity.TipoObra;
 import com.example.demo.service.ObraService;
 import com.example.demo.service.BusquedaUnificadaService;
 
+import java.util.Locale;
+import org.springframework.web.server.ResponseStatusException;
+
 @RestController
 public class ObraController {
 
@@ -116,10 +119,55 @@ public class ObraController {
 	// =====================================================================
 	// H1.3 - ENVIAR, EDITAR Y CONSULTAR MIS OBRAS
 	// =====================================================================
+	// Comprueba si una obra ya existe antes de registrarla.
+	@GetMapping("/api/obras/comprobar")
+	public List<SearchResultDTO> comprobarObra(@RequestParam String titulo, @RequestParam TipoObra tipo) {
+
+		return busquedaUnificadaService.comprobarAntesDeRegistrar(titulo, tipo);
+	}
 
 	// Crear una obra (queda pendiente de validación).
 	@PostMapping("/api/obras")
 	public Obra crearObra(@RequestBody ObraRequest request, Authentication auth) {
+
+		if (request.getTitulo() == null || request.getTitulo().isBlank()) {
+
+			throw new IllegalArgumentException("El título es obligatorio");
+		}
+
+		if (request.getTitulo().trim().length() > 255) {
+
+			throw new IllegalArgumentException("El título no puede superar los 255 caracteres");
+		}
+
+		if (request.getTipo() == null || request.getTipo().isBlank()) {
+
+			throw new IllegalArgumentException("Elige un tipo de obra");
+		}
+
+		TipoObra tipo;
+
+		try {
+
+			tipo = TipoObra.valueOf(request.getTipo().trim().toUpperCase(Locale.ROOT));
+
+		} catch (IllegalArgumentException e) {
+
+			throw new IllegalArgumentException("El tipo de obra no es válido");
+		}
+
+		// Comprobamos nuevamente el catálogo antes de guardar.
+		List<SearchResultDTO> coincidencias = busquedaUnificadaService
+				.comprobarAntesDeRegistrar(request.getTitulo().trim(), tipo);
+
+		// Si existen coincidencias, exigimos confirmación.
+		if (!coincidencias.isEmpty() && !request.isCoincidenciasRevisadas()) {
+
+			throw new ResponseStatusException(HttpStatus.CONFLICT,
+					"Debes revisar las obras existentes antes de continuar");
+		}
+
+		// Conservamos el proceso original de creación y moderación.
 		return obraService.crear(auth.getName(), request);
 	}
 

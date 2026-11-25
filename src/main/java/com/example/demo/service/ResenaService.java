@@ -33,15 +33,29 @@ public class ResenaService {
 		return resenaGuardada;
 	}
 
-	// Editar una reseña
+	// Editar una reseña y registrar el cambio.
+	@Transactional
 	public Resena editarResena(Long id, String texto) {
+
 		validarTexto(texto);
 
 		Resena resena = resenaRepository.findById(id)
 				.orElseThrow(() -> new IllegalArgumentException("Reseña no encontrada"));
 
+		// Evitamos actividades duplicadas si el texto no cambia.
+		if (java.util.Objects.equals(resena.getTexto(), texto)) {
+
+			return resena;
+		}
+
 		resena.setTexto(texto);
-		return resenaRepository.save(resena);
+
+		Resena guardada = resenaRepository.save(resena);
+
+		actividadService.registrarActividad(guardada.getUsuarioId(), guardada.getObraId(), "RESENA",
+				"Ha actualizado su reseña");
+
+		return guardada;
 	}
 
 	// Eliminar una reseña

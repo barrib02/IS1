@@ -8,6 +8,11 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.client.HttpClientErrorException;
 import com.example.demo.dto.ProgresoRequest;
 import com.example.demo.dto.ProgresoResponse;
 import com.example.demo.entity.EstadoObra;
@@ -27,13 +32,17 @@ public class ProgresoService {
 	private final ObraRepository obraRepository;
 	private final PerfilService perfilService;
 	private final ActividadService actividadService;
+	private final TmdbService tmdbService;
+	private final JsonMapper jsonMapper = JsonMapper.builder().build();
 
 	public ProgresoService(EstadoUsuarioObraRepository estadoRepository, ObraRepository obraRepository,
-			PerfilService perfilService, ActividadService actividadService) {
+			PerfilService perfilService, ActividadService actividadService, TmdbService tmdbService) {
+
 		this.estadoRepository = estadoRepository;
 		this.obraRepository = obraRepository;
 		this.perfilService = perfilService;
 		this.actividadService = actividadService;
+		this.tmdbService = tmdbService;
 	}
 
 	// Guarda el progreso. Libro: páginas. Serie: temporada y capítulo.
@@ -58,6 +67,7 @@ public class ProgresoService {
 		} else if (obra.getTipo() == TipoObra.SERIE) {
 			Integer temporada = validar(request.getTemporadaActual(), 1, "La temporada");
 			Integer capitulo = validar(request.getCapituloActual(), 1, "El capítulo");
+			validarProgresoTmdb(obra, temporada, capitulo);
 			hayCambio = !temporada.equals(registro.getTemporadaActual())
 					|| !capitulo.equals(registro.getCapituloActual());
 			registro.setTemporadaActual(temporada);
@@ -118,6 +128,47 @@ public class ProgresoService {
 
 	// ---------- auxiliares ----------
 
+	// Comprueba que la temporada y el episodio existen en TMDB.
+	private void validarProgresoTmdb(Obra obra, int temporada, int capitulo) {
+
+		// Las series originales de la comunidad no dependen de TMDB.
+		if (!"TMDB".equals(obra.getFuenteApi())) {
+			return;
+		}
+
+		JsonNode datos;
+
+		try {
+			String json = tmdbService.obtenerTemporada(obra.getIdExterno(), temporada);
+
+			datos = jsonMapper.readTree(json);
+
+			if (datos == null || datos.path("season_number").asInt(-1) != temporada
+					|| !datos.path("episodes").isArray()) {
+
+				throw new IllegalStateException("Respuesta incorrecta de TMDB");
+			}
+
+		} catch (HttpClientErrorException.NotFound error) {
+
+			throw new IllegalArgumentException("La temporada seleccionada no existe");
+
+		} catch (RuntimeException error) {
+
+			throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+					"No se ha podido comprobar el progreso en TMDB");
+		}
+
+		for (JsonNode episodio : datos.path("episodes")) {
+
+			if (episodio.path("episode_number").asInt(-1) == capitulo) {
+				return;
+			}
+		}
+
+		throw new IllegalArgumentException("El capítulo seleccionado no existe en esta temporada");
+	}
+
 	private Obra buscarObra(Long id) {
 		return obraRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("La obra no existe"));
 	}
@@ -131,13 +182,11 @@ public class ProgresoService {
 		}
 		return valor;
 	}
-	
+
 	private ProgresoResponse convertir(EstadoUsuarioObra r, Obra obra) {
-		return new ProgresoResponse(obra.getId(), obra.getTitulo(),
-				obra.getTipo() == null ? "" : obra.getTipo().name(),
+		return new ProgresoResponse(obra.getId(), obra.getTitulo(), obra.getTipo() == null ? "" : obra.getTipo().name(),
 				r == null || r.getEstado() == null ? null : r.getEstado().name(),
-				r == null ? null : r.getPaginasLeidas(),
-				r == null ? null : r.getTemporadaActual(),
+				r == null ? null : r.getPaginasLeidas(), r == null ? null : r.getTemporadaActual(),
 				r == null ? null : r.getCapituloActual(),
 				r == null || r.getFechaCompletada() == null ? null : r.getFechaCompletada().toLocalDate().toString());
 	}

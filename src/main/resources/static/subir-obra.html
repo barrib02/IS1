@@ -10,51 +10,68 @@
 </head>
 <body>
 
-<div id="navbar"></div>
+	<div id="navbar"></div>
 
-<main class="contenedor">
+	<main class="contenedor">
 
-	<h1 id="tituloPagina">Subir nueva obra</h1>
+		<h1 id="tituloPagina">Subir nueva obra</h1>
 
-	<!-- Avisos: motivo del rechazo, aviso de revalidación, errores de permisos... -->
-	<div id="avisos"></div>
+		<!-- Avisos: motivo del rechazo, aviso de revalidación, errores de permisos... -->
+		<div id="avisos"></div>
 
-	<form id="formObra" class="tarjeta">
+		<form id="formObra" class="tarjeta">
 
-		<div class="grupo">
-			<label for="titulo">Título</label>
-			<input id="titulo" maxlength="255" required>
-		</div>
+			<div class="grupo">
+				<label for="titulo">Título</label> <input id="titulo"
+					maxlength="255" required>
+			</div>
 
-		<div class="grupo">
-			<label for="autor">Autor / creador de la obra</label>
-			<input id="autor" maxlength="255">
-		</div>
+			<div class="grupo">
+				<label for="autor">Autor / creador de la obra</label> <input
+					id="autor" maxlength="255">
+			</div>
 
-		<div class="grupo">
-			<label for="tipo">Tipo</label>
-			<select id="tipo">
-				<option value="LIBRO">Libro</option>
-				<option value="PELICULA">Película</option>
-				<option value="SERIE">Serie</option>
-				<option value="VIDEOJUEGO">Videojuego</option>
-			</select>
-		</div>
+			<div class="grupo">
+				<label for="tipo">Tipo</label> <select id="tipo">
+					<option value="LIBRO">Libro</option>
+					<option value="PELICULA">Película</option>
+					<option value="SERIE">Serie</option>
+					<option value="VIDEOJUEGO">Videojuego</option>
+				</select>
+			</div>
 
-		<div class="grupo">
-			<label for="descripcion">Descripción</label>
-			<textarea id="descripcion" rows="6" maxlength="4000"></textarea>
-		</div>
+			<div class="grupo">
+				<label for="descripcion">Descripción</label>
+				<textarea id="descripcion" rows="6" maxlength="4000"></textarea>
+			</div>
 
-		<button type="submit" class="btn" id="guardar">Enviar para validación</button>
-		<p id="msg" class="msg" role="status" aria-live="polite"></p>
-	</form>
+			<section id="coincidencias" class="tarjeta" hidden>
 
-	<p><a href="/mis-obras.html">← Ver mis obras</a></p>
+				<h2>Obras que ya existen</h2>
 
-</main>
+				<p>Comprueba si alguna de estas obras es la que quieres
+					registrar.</p>
 
-<script>
+				<div id="resultadosCoincidencias"></div>
+
+				<label> <input type="checkbox" id="confirmarOriginal">
+					Ninguna de estas obras es la que quiero registrar.
+				</label>
+
+			</section>
+
+			<button type="submit" class="btn" id="guardar">Enviar para
+				validación</button>
+			<p id="msg" class="msg" role="status" aria-live="polite"></p>
+		</form>
+
+		<p>
+			<a href="/mis-obras.html">← Ver mis obras</a>
+		</p>
+
+	</main>
+
+	<script>
 const $ = id => document.getElementById(id);
 const JSON_HEADERS = { "Content-Type": "application/json" };
 
@@ -110,44 +127,291 @@ async function prepararEdicion() {
 
 	$("avisos").innerHTML = avisos;
 }
+//Guarda la búsqueda que ya ha sido comprobada.
+let comprobacionRealizada = null;
+
+// Genera el enlace a una obra existente.
+function enlaceCoincidencia(obra) {
+
+    if (obra.fuenteApi && obra.idExterno) {
+
+        const parametros = new URLSearchParams({
+            fuente: obra.fuenteApi,
+            tipo: obra.tipo,
+            idExterno: obra.idExterno
+        });
+
+        return "/work.html?" + parametros.toString();
+    }
+
+    return "/work.html?id=" +
+        encodeURIComponent(obra.id);
+}
+
+// Reinicia la comprobación si cambia el título o el tipo.
+function reiniciarComprobacion() {
+
+    comprobacionRealizada = null;
+
+    $("coincidencias").hidden = true;
+    $("confirmarOriginal").checked = false;
+    $("resultadosCoincidencias").innerHTML = "";
+
+    if (!obraId) {
+        $("guardar").textContent = "Comprobar y enviar";
+    }
+}
+
+$("titulo").addEventListener("input", reiniciarComprobacion);
+$("tipo").addEventListener("change", reiniciarComprobacion);
+
+// Consulta Neon y la API correspondiente.
+async function comprobarObra(cuerpo) {
+
+    const clave = JSON.stringify([
+        cuerpo.titulo.trim(),
+        cuerpo.tipo
+    ]);
+
+    // Si ya se mostraron las coincidencias,
+    // exigimos que el usuario las haya revisado.
+    if (comprobacionRealizada === clave) {
+
+        if (!$("confirmarOriginal").checked) {
+
+            mostrar(
+                "Revisa las coincidencias antes de continuar.",
+                false
+            );
+
+            return false;
+        }
+
+        return true;
+    }
+
+    const parametros = new URLSearchParams({
+        titulo: cuerpo.titulo.trim(),
+        tipo: cuerpo.tipo
+    });
+
+    mostrar("Buscando obras existentes...", true);
+
+    const r = await Shelfie.apiSesion(
+        "/api/obras/comprobar?" + parametros.toString()
+    );
+
+    if (!r.ok || !Array.isArray(r.datos)) {
+
+        mostrar(
+            "No se ha podido comprobar el catálogo. " +
+            "Inténtalo de nuevo antes de registrar la obra.",
+            false
+        );
+
+        return false;
+    }
+
+    // Evitamos utilizar una comprobación antigua
+    // si se modificó el formulario durante la consulta.
+    if (
+        $("titulo").value.trim() !== cuerpo.titulo.trim() ||
+        $("tipo").value !== cuerpo.tipo
+    ) {
+        reiniciarComprobacion();
+        mostrar("El formulario ha cambiado. Comprueba de nuevo.", false);
+        return false;
+    }
+
+    // No se han encontrado coincidencias.
+    if (r.datos.length === 0) {
+        return true;
+    }
+
+    const contenedor = $("resultadosCoincidencias");
+
+    contenedor.innerHTML = "";
+
+    r.datos.forEach(obra => {
+
+        const fila = document.createElement("div");
+
+        fila.style.display = "flex";
+        fila.style.alignItems = "center";
+        fila.style.gap = "15px";
+        fila.style.marginBottom = "15px";
+
+        if (
+            obra.imagenUrl &&
+            obra.imagenUrl.startsWith("https://")
+        ) {
+
+            const imagen = document.createElement("img");
+
+            imagen.src = obra.imagenUrl;
+            imagen.alt = "";
+            imagen.width = 55;
+            imagen.loading = "lazy";
+            imagen.style.borderRadius = "5px";
+
+            fila.appendChild(imagen);
+        }
+
+        const informacion = document.createElement("div");
+
+        const enlace = document.createElement("a");
+
+        enlace.href = enlaceCoincidencia(obra);
+        enlace.target = "_blank";
+        enlace.rel = "noopener noreferrer";
+        enlace.textContent = obra.titulo;
+
+        informacion.appendChild(enlace);
+
+        const origen = document.createElement("p");
+
+        origen.textContent =
+            (Shelfie.NOMBRE_TIPO[obra.tipo] || obra.tipo) +
+            " · " +
+            (obra.fuenteApi || "Catálogo de Shelfie");
+
+        informacion.appendChild(origen);
+
+        fila.appendChild(informacion);
+        contenedor.appendChild(fila);
+    });
+
+    comprobacionRealizada = clave;
+
+    $("coincidencias").hidden = false;
+    $("confirmarOriginal").checked = false;
+    $("guardar").textContent = "Enviar obra para validación";
+
+    mostrar(
+        "Hemos encontrado posibles coincidencias. Revísalas.",
+        true
+    );
+
+    return false;
+}
 
 // ---------- Guardar (crear o editar) ----------
+// ---------- Guardar (crear o editar) ----------
 $("formObra").addEventListener("submit", async function (evento) {
-	evento.preventDefault();
 
-	const cuerpo = {
-		titulo: $("titulo").value,
-		autor: $("autor").value,
-		tipo: $("tipo").value,
-		descripcion: $("descripcion").value
-	};
+    evento.preventDefault();
 
-	$("guardar").disabled = true;
+    const cuerpo = {
+        titulo: $("titulo").value.trim(),
+        autor: $("autor").value,
+        tipo: $("tipo").value,
+        descripcion: $("descripcion").value
+    };
 
-	const r = await Shelfie.apiSesion(
-		obraId ? "/api/obras/" + obraId : "/api/obras",
-		{ method: obraId ? "PUT" : "POST", headers: JSON_HEADERS, body: JSON.stringify(cuerpo) });
+    if (!cuerpo.titulo) {
 
-	$("guardar").disabled = false;
+        mostrar("Introduce un título.", false);
 
-	if (!r.ok) {
-		mostrar(textoError(r, "No se ha podido guardar la obra."), false);
-		return;
-	}
+        return;
+    }
 
-	const texto = obraId
-		? "Cambios guardados. La obra volverá a ser revisada por un moderador."
-		: "Obra enviada para validación.";
+    $("guardar").disabled = true;
 
-	// Mensaje con enlace a la pantalla de estado de validación.
-	$("msg").className = "msg ok";
-	$("msg").innerHTML = Shelfie.esc(texto) +
-		' <a href="/estado-validacion.html?id=' + Number(r.datos.id) + '">Ver estado de validación</a>';
+    try {
 
-	if (!obraId) { $("formObra").reset(); }
+        // Solo comprobamos las obras nuevas.
+        if (!obraId) {
+
+            const puedeContinuar = await comprobarObra(cuerpo);
+
+            if (!puedeContinuar) {
+                return;
+            }
+            cuerpo.coincidenciasRevisadas =
+                comprobacionRealizada === JSON.stringify([
+                    cuerpo.titulo.trim(),
+                    cuerpo.tipo
+                ]) && $("confirmarOriginal").checked;
+        }
+
+        // Conservamos el sistema de registro y edición existente.
+        const r = await Shelfie.apiSesion(
+            obraId ? "/api/obras/" + obraId : "/api/obras",
+            {
+                method: obraId ? "PUT" : "POST",
+                headers: JSON_HEADERS,
+                body: JSON.stringify(cuerpo)
+            }
+        );
+
+        if (!r.ok) {
+
+            if (!obraId && r.status === 409) {
+
+                reiniciarComprobacion();
+
+                mostrar(
+                    "Debes comprobar nuevamente las obras existentes.",
+                    false
+                );
+
+                return;
+            }
+
+            if (!obraId && r.status === 503) {
+
+                mostrar(
+                    "La API no está disponible. Inténtalo más tarde.",
+                    false
+                );
+
+                return;
+            }
+
+            mostrar(
+                textoError(r, "No se ha podido guardar la obra."),
+                false
+            );
+
+            return;
+        }
+
+        const texto = obraId
+            ? "Cambios guardados. La obra volverá a ser revisada por un moderador."
+            : "Obra enviada para validación.";
+
+        $("msg").className = "msg ok";
+
+        $("msg").innerHTML = Shelfie.esc(texto) +
+            ' <a href="/estado-validacion.html?id=' +
+            Number(r.datos.id) +
+            '">Ver estado de validación</a>';
+
+        if (!obraId) {
+
+            $("formObra").reset();
+
+            reiniciarComprobacion();
+        }
+
+    } catch (error) {
+
+        mostrar(
+            "No se ha podido completar la operación. Inténtalo de nuevo.",
+            false
+        );
+
+    } finally {
+
+        $("guardar").disabled = false;
+    }
 });
 
-if (obraId) { prepararEdicion(); }
+if (obraId) {
+    prepararEdicion();
+} else {
+    reiniciarComprobacion();
+}
 </script>
 
 </body>

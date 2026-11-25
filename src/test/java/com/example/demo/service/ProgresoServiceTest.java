@@ -1,4 +1,4 @@
-package com.example.demo;
+package com.example.demo.service;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -22,7 +22,9 @@ class ProgresoServiceTest {
 	private final ObraRepository obraRepo = mock(ObraRepository.class);
 	private final PerfilService perfil = mock(PerfilService.class);
 	private final ActividadService actividad = mock(ActividadService.class);
-	private final ProgresoService service = new ProgresoService(repo, obraRepo, perfil, actividad);
+	private final TmdbService tmdb = mock(TmdbService.class);
+
+	private final ProgresoService service = new ProgresoService(repo, obraRepo, perfil, actividad, tmdb);
 
 	private void preparar(TipoObra tipo) {
 		Usuario usuario = mock(Usuario.class);
@@ -78,7 +80,7 @@ class ProgresoServiceTest {
 		preparar(TipoObra.PELICULA);
 		assertThrows(IllegalArgumentException.class, () -> service.guardar("a@a.com", 10L, new ProgresoRequest()));
 	}
-	
+
 	@Test
 	void registraActividadAlCambiarElProgreso() {
 		preparar(TipoObra.LIBRO);
@@ -88,5 +90,80 @@ class ProgresoServiceTest {
 		service.guardar("a@a.com", 10L, req);
 
 		verify(actividad).registrarActividad(eq(1L), eq(10L), eq("PROGRESO"), anyString());
+	}
+
+	private ProgresoRequest prepararSerieTmdb(int temporada, int capitulo) {
+
+		preparar(TipoObra.SERIE);
+
+		Obra obra = obraRepo.findById(10L).orElseThrow();
+
+		obra.setFuenteApi("TMDB");
+		obra.setIdExterno("1399");
+
+		ProgresoRequest req = new ProgresoRequest();
+
+		req.setTemporadaActual(temporada);
+		req.setCapituloActual(capitulo);
+
+		return req;
+	}
+
+	@Test
+	void permiteGuardarEpisodioExistenteEnTmdb() {
+
+		ProgresoRequest req = prepararSerieTmdb(1, 2);
+
+		when(tmdb.obtenerTemporada("1399", 1)).thenReturn("""
+				{
+				    "season_number": 1,
+				    "episodes": [
+				        {"episode_number": 1},
+				        {"episode_number": 2}
+				    ]
+				}
+				""");
+
+		ProgresoResponse r = service.guardar("a@a.com", 10L, req);
+
+		assertEquals(1, r.getTemporadaActual());
+		assertEquals(2, r.getCapituloActual());
+
+		verify(repo).save(any(EstadoUsuarioObra.class));
+	}
+
+	@Test
+	void rechazaEpisodioInexistenteEnTmdb() {
+
+		ProgresoRequest req = prepararSerieTmdb(1, 99);
+
+		when(tmdb.obtenerTemporada("1399", 1)).thenReturn("""
+				{
+				    "season_number": 1,
+				    "episodes": [
+				        {"episode_number": 1},
+				        {"episode_number": 2}
+				    ]
+				}
+				""");
+
+		assertThrows(IllegalArgumentException.class, () -> service.guardar("a@a.com", 10L, req));
+
+		verify(repo, never()).save(any(EstadoUsuarioObra.class));
+	}
+
+	@Test
+	void noGuardaProgresoSiTmdbNoEstaDisponible() {
+
+		ProgresoRequest req = prepararSerieTmdb(1, 2);
+
+		when(tmdb.obtenerTemporada("1399", 1)).thenThrow(new RuntimeException("API no disponible"));
+
+		var error = assertThrows(org.springframework.web.server.ResponseStatusException.class,
+				() -> service.guardar("a@a.com", 10L, req));
+
+		assertEquals(503, error.getStatusCode().value());
+
+		verify(repo, never()).save(any(EstadoUsuarioObra.class));
 	}
 }

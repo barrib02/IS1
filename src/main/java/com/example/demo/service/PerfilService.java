@@ -3,11 +3,12 @@ package com.example.demo.service;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import com.example.demo.dto.PerfilResponse;
 import com.example.demo.entity.Usuario;
 import com.example.demo.repository.UsuarioRepository;
-
+import com.example.demo.entity.PrivacidadPerfil;
 import java.io.IOException;
 
 @Service
@@ -35,23 +36,35 @@ public class PerfilService {
 		return convertir(obtenerUsuarioPorEmail(email));
 	}
 
-	// Perfil de cualquier usuario por su id (solo datos públicos).
+	// Consultar un perfil por su identificador.
 	public PerfilResponse obtenerPerfilPorId(Long id) {
 		return obtenerPerfilPorId(id, null);
 	}
 
-	// Si la cuenta es privada y quien consulta no es su dueño, se oculta la biografía.
+	// H5.3 - Consultar un perfil respetando su privacidad.
 	public PerfilResponse obtenerPerfilPorId(Long id, String emailSolicitante) {
+
 		Usuario usuario = usuarioRepository.findById(id)
 				.orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
 
-		PerfilResponse respuesta = convertir(usuario);
-
 		boolean esPropio = emailSolicitante != null && emailSolicitante.equalsIgnoreCase(usuario.getEmail());
-		if (!usuario.isPerfilPublico() && !esPropio) {
-			respuesta.setBiografia(null);
+
+		if (!esPropio) {
+
+			switch (usuario.getPrivacidadPerfil()) {
+
+			case PUBLICO:
+				break;
+
+			case PRIVADO:
+				throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Este perfil es privado");
+
+			case SOLO_AMIGOS:
+				throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Este perfil solo es visible para amigos");
+			}
 		}
-		return respuesta;
+
+		return convertir(usuario);
 	}
 
 	@Transactional
@@ -59,6 +72,22 @@ public class PerfilService {
 		Usuario usuario = obtenerUsuarioPorEmail(email);
 		usuario.setPerfilPublico(publico);
 		usuarioRepository.save(usuario);
+		return convertir(usuario);
+	}
+
+	@Transactional
+	public PerfilResponse actualizarPrivacidad(String email, PrivacidadPerfil privacidad) {
+
+		if (privacidad == null) {
+			throw new IllegalArgumentException("La privacidad del perfil es obligatoria");
+		}
+
+		Usuario usuario = obtenerUsuarioPorEmail(email);
+
+		usuario.setPrivacidadPerfil(privacidad);
+
+		usuarioRepository.save(usuario);
+
 		return convertir(usuario);
 	}
 
@@ -82,10 +111,10 @@ public class PerfilService {
 
 	// Convierte la entidad en el DTO que se envía al navegador.
 	private PerfilResponse convertir(Usuario usuario) {
-		PerfilResponse respuesta = new PerfilResponse(usuario.getId(), usuario.getNombre(),
-				usuario.getBiografia(), usuario.getFotoPerfilUrl(), usuario.getBannerUrl());
+		PerfilResponse respuesta = new PerfilResponse(usuario.getId(), usuario.getNombre(), usuario.getBiografia(),
+				usuario.getFotoPerfilUrl(), usuario.getBannerUrl());
 		respuesta.setRol(usuario.getRol() == null ? "USUARIO" : usuario.getRol().name());
-		respuesta.setPerfilPublico(usuario.isPerfilPublico());
+		respuesta.setPrivacidadPerfil(usuario.getPrivacidadPerfil());
 		return respuesta;
 	}
 
@@ -123,7 +152,7 @@ public class PerfilService {
 
 		return usuario.getRol() == com.example.demo.entity.RolUsuario.MODERADOR;
 	}
-	
+
 	// Cambia el nombre del usuario autenticado.
 	@Transactional
 	public PerfilResponse actualizarNombre(String email, String nombre) {

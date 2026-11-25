@@ -1,4 +1,4 @@
-package com.example.demo;
+package com.example.demo.service;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
@@ -90,7 +90,7 @@ class ValoracionServiceTest {
 	}
 
 	@Test
-	void editarValoracionNoRegistraNuevaActividad() {
+	void editarValoracionRegistraNuevaActividad() {
 
 		ValoracionRepository repositorio = mock(ValoracionRepository.class);
 
@@ -98,8 +98,8 @@ class ValoracionServiceTest {
 
 		ValoracionService servicio = new ValoracionService(repositorio, actividadService);
 
-		// Creamos una valoración que ya existe.
 		Valoracion valoracion = new Valoracion();
+
 		valoracion.setId(1L);
 		valoracion.setUsuarioId(1L);
 		valoracion.setObraId(10L);
@@ -109,11 +109,12 @@ class ValoracionServiceTest {
 
 		when(repositorio.save(any(Valoracion.class))).thenReturn(valoracion);
 
-		// Editamos la puntuación.
-		servicio.editarValoracion(1L, 3);
+		Valoracion resultado = servicio.editarValoracion(1L, 3);
 
-		// Comprobamos que no se registra otra actividad.
-		verifyNoInteractions(actividadService);
+		assertEquals(3, resultado.getPuntuacion());
+
+		verify(actividadService).registrarActividad(1L, 10L, "VALORACION",
+				"Ha actualizado su valoración a 3 estrellas");
 	}
 
 }

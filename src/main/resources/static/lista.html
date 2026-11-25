@@ -7,6 +7,7 @@
 <link rel="icon" href="/images/logo.svg">
 <link rel="stylesheet" href="/css/shelfie.css">
 <script src="/js/shelfie.js"></script>
+<script src="/js/estados.js"></script>
 <style>
 .acciones-lista {
 	display: flex;
@@ -79,6 +80,7 @@
 const $ = id => document.getElementById(id);
 const listaId = new URLSearchParams(window.location.search).get("id");
 let lista = null;
+let estadosObras = new Map();
 
 // Llama a la API. Sin sesión redirige al login; si hay error lanza su mensaje.
 async function api(url, opciones) {
@@ -147,7 +149,20 @@ function pintar() {
 		fila.appendChild(titulo);
 
 		fila.appendChild(crear("span", Shelfie.NOMBRE_TIPO[obra.tipo] || obra.tipo, "chip " + Shelfie.claseTipo(obra.tipo)));
+		const estado = estadosObras.get(String(obra.id));
 
+		if (estado === "NO_DISPONIBLE") {
+
+		    fila.appendChild(
+		        crear("span", "Estado no disponible", "chip")
+		    );
+
+		} else {
+
+		    fila.appendChild(
+		        EstadosShelfie.crearEtiqueta(obra.tipo, estado)
+		    );
+		}
 		// Solo el dueño puede quitar obras.
 		if (lista.mia) {
 			const quitar = crear("button", "Quitar", "btn btn-peligro btn-peq");
@@ -173,8 +188,17 @@ async function quitarObra(obra) {
 }
 
 async function cargar() {
-	lista = await api("/api/listas/" + listaId);
-	pintar();
+
+    lista = await api("/api/listas/" + listaId);
+
+    const perfil = await api("/api/perfil");
+
+    estadosObras = await EstadosShelfie.obtenerVarios(
+        perfil.id,
+        lista.obras.map(obra => obra.id)
+    );
+
+    pintar();
 }
 
 async function iniciar() {

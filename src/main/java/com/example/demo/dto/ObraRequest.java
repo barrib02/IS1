@@ -2,43 +2,53 @@ package com.example.demo.dto;
 
 public class ObraRequest {
 
-    private String titulo;
+	private String titulo;
 
-    private String descripcion;
+	private String descripcion;
 
-    private String autor;
+	private String autor;
 
-    private String tipo;
+	private String tipo;
+	private boolean coincidenciasRevisadas;
 
-    public String getTitulo() {
-        return titulo;
-    }
+	public String getTitulo() {
+		return titulo;
+	}
 
-    public void setTitulo(String titulo) {
-        this.titulo = titulo;
-    }
+	public void setTitulo(String titulo) {
+		this.titulo = titulo;
+	}
 
-    public String getDescripcion() {
-        return descripcion;
-    }
+	public String getDescripcion() {
+		return descripcion;
+	}
 
-    public void setDescripcion(String descripcion) {
-        this.descripcion = descripcion;
-    }
+	public void setDescripcion(String descripcion) {
+		this.descripcion = descripcion;
+	}
 
-    public String getAutor() {
-        return autor;
-    }
+	public String getAutor() {
+		return autor;
+	}
 
-    public void setAutor(String autor) {
-        this.autor = autor;
-    }
+	public void setAutor(String autor) {
+		this.autor = autor;
+	}
 
-    public String getTipo() {
-        return tipo;
-    }
+	public String getTipo() {
+		return tipo;
+	}
 
-    public void setTipo(String tipo) {
-        this.tipo = tipo;
-    }
+	public void setTipo(String tipo) {
+		this.tipo = tipo;
+	}
+
+	public boolean isCoincidenciasRevisadas() {
+		return coincidenciasRevisadas;
+	}
+
+	public void setCoincidenciasRevisadas(boolean coincidenciasRevisadas) {
+
+		this.coincidenciasRevisadas = coincidenciasRevisadas;
+	}
 }

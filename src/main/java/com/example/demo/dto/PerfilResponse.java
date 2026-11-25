@@ -1,6 +1,8 @@
 
 package com.example.demo.dto;
 
+import com.example.demo.entity.PrivacidadPerfil;
+
 public class PerfilResponse {
 
 	private Long id;
@@ -10,6 +12,7 @@ public class PerfilResponse {
 	private String bannerUrl;
 	private String rol;
 	private boolean perfilPublico = true;
+	private PrivacidadPerfil privacidadPerfil = PrivacidadPerfil.PUBLICO;
 
 	public String getRol() {
 		return rol;
@@ -67,6 +70,20 @@ public class PerfilResponse {
 		this.bannerUrl = bannerUrl;
 	}
 
-	public boolean isPerfilPublico() { return perfilPublico; }
-	public void setPerfilPublico(boolean perfilPublico) { this.perfilPublico = perfilPublico; }
+	public boolean isPerfilPublico() {
+		return perfilPublico;
+	}
+
+	public void setPerfilPublico(boolean perfilPublico) {
+		this.perfilPublico = perfilPublico;
+	}
+
+	public PrivacidadPerfil getPrivacidadPerfil() {
+		return privacidadPerfil;
+	}
+
+	public void setPrivacidadPerfil(PrivacidadPerfil privacidadPerfil) {
+		this.privacidadPerfil = privacidadPerfil;
+		this.perfilPublico = privacidadPerfil == PrivacidadPerfil.PUBLICO;
+	}
 }

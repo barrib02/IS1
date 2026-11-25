@@ -1,5 +1,6 @@
 
 package com.example.demo.entity;
+
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import java.time.LocalDateTime;
@@ -39,6 +40,13 @@ public class Usuario {
 	@Column(name = "token_expiracion")
 	private LocalDateTime tokenExpiracion;
 
+	// H6.3 - Recuperación de contraseña.
+	@Column(name = "token_recuperacion", unique = true, length = 64)
+	private String tokenRecuperacion;
+
+	@Column(name = "token_recuperacion_expiracion")
+	private LocalDateTime tokenRecuperacionExpiracion;
+
 	@Column(length = 500)
 	private String biografia;
 	// H4.2 - URL de la foto de perfil
@@ -48,7 +56,7 @@ public class Usuario {
 	// H4.4 - URL del banner
 	@Column(name = "banner_url")
 	private String bannerUrl;
-	
+
 	@Enumerated(EnumType.STRING)
 	private RolUsuario rol = RolUsuario.USUARIO;
 
@@ -69,13 +77,13 @@ public class Usuario {
 	public Long getId() {
 		return id;
 	}
-	
+
 	public RolUsuario getRol() {
-	    return rol;
+		return rol;
 	}
-	
+
 	public void setRol(RolUsuario rol) {
-	    this.rol = rol;
+		this.rol = rol;
 	}
 
 	public String getNombre() {
@@ -149,16 +157,60 @@ public class Usuario {
 	public void setBannerUrl(String bannerUrl) {
 		this.bannerUrl = bannerUrl;
 	}
-	
-	// true = cualquiera puede ver tu biografía. Los usuarios antiguos (null) se tratan como públicos.
+
+	// H5.3 - Privacidad del perfil.
+
+	// Conservamos el campo anterior por compatibilidad.
 	@Column(name = "perfil_publico")
 	private Boolean perfilPublico = true;
 
+	@Enumerated(EnumType.STRING)
+	@Column(name = "privacidad_perfil", length = 20)
+	private PrivacidadPerfil privacidadPerfil;
+
+	public PrivacidadPerfil getPrivacidadPerfil() {
+
+		if (privacidadPerfil != null) {
+			return privacidadPerfil;
+		}
+
+		// Compatibilidad con los usuarios registrados anteriormente.
+		return Boolean.FALSE.equals(perfilPublico) ? PrivacidadPerfil.PRIVADO : PrivacidadPerfil.PUBLICO;
+	}
+
+	public void setPrivacidadPerfil(PrivacidadPerfil privacidadPerfil) {
+
+		if (privacidadPerfil == null) {
+			throw new IllegalArgumentException("La privacidad del perfil es obligatoria");
+		}
+
+		this.privacidadPerfil = privacidadPerfil;
+		this.perfilPublico = privacidadPerfil == PrivacidadPerfil.PUBLICO;
+	}
+
 	public boolean isPerfilPublico() {
-		return perfilPublico == null || perfilPublico;
+		return getPrivacidadPerfil() == PrivacidadPerfil.PUBLICO;
 	}
 
 	public void setPerfilPublico(boolean perfilPublico) {
-		this.perfilPublico = perfilPublico;
+
+		setPrivacidadPerfil(perfilPublico ? PrivacidadPerfil.PUBLICO : PrivacidadPerfil.PRIVADO);
+	}
+
+	public String getTokenRecuperacion() {
+		return tokenRecuperacion;
+	}
+
+	public void setTokenRecuperacion(String tokenRecuperacion) {
+		this.tokenRecuperacion = tokenRecuperacion;
+	}
+
+	public LocalDateTime getTokenRecuperacionExpiracion() {
+		return tokenRecuperacionExpiracion;
+	}
+
+	public void setTokenRecuperacionExpiracion(LocalDateTime tokenRecuperacionExpiracion) {
+
+		this.tokenRecuperacionExpiracion = tokenRecuperacionExpiracion;
 	}
 }

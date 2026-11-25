@@ -59,23 +59,28 @@ public class SecurityConfig {
 								"/lista.html", // <-- NUEVO
 								"/css/**", "/js/**", "/images/**", "/favicon.ico", "/subir-obra.html",
 								"/mis-obras.html", "/validar-obras.html", "/estado-validacion.html",
-								"/notificaciones.html", "/creador.html", "/publicas.html")
+								"/notificaciones.html", "/creador.html", "/publicas.html", "/recuperar-password.html",
+								"/restablecer-password.html")
 						.permitAll()
 
 						// H6.1 - Registro de usuarios.
 						// H6.2 - Inicio de sesión.
-						.requestMatchers(HttpMethod.POST, "/api/auth/registro", "/api/auth/login").permitAll()
+						.requestMatchers(HttpMethod.POST, "/api/auth/registro", "/api/auth/login",
+								"/api/auth/recuperar-password", "/api/auth/restablecer-password")
+						.permitAll()
 
 						// H6.1 - Verificación del correo electrónico.
-						.requestMatchers(HttpMethod.GET, "/search", "/work/*", "/sugerencias", "/explorar/**")
+						.requestMatchers(HttpMethod.GET, "/api/auth/verificar", "/search", "/work/*", "/sugerencias",
+								"/explorar/**")
 						.permitAll()
 
 						// H6.2 - Cierre de sesión.
 						.requestMatchers(HttpMethod.POST, "/api/auth/logout").authenticated()
 
 						// Consultas públicas de obras y APIs externas.
-						.requestMatchers(HttpMethod.GET, "/search", "/work/*", "/api/googlebooks/**").permitAll()
-
+						.requestMatchers(HttpMethod.GET, "/search", "/work/*", "/api/tmdb/**", "/api/googlebooks/**",
+								"/api/rawg/**")
+						.permitAll()
 						// Consultas públicas de reseñas y valoraciones.
 						.requestMatchers(HttpMethod.GET, "/api/resenas/**", "/api/valoraciones/**").permitAll()
 

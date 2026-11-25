@@ -8,82 +8,125 @@
 <link rel="stylesheet" href="/css/shelfie.css">
 <script src="/js/shelfie.js"></script>
 <style>
-	.previa-banner { width: 100%; height: 140px; object-fit: cover; border-radius: 10px; background: var(--borde); }
-	.previa-foto { width: 90px; height: 90px; object-fit: cover; border-radius: 50%; background: var(--borde); }
-	.contador { text-align: right; font-size: 14px; }
-	.contador.excedido { color: var(--error); }
-	.zona-peligro { border-color: var(--error); }
+.previa-banner {
+	width: 100%;
+	height: 140px;
+	object-fit: cover;
+	border-radius: 10px;
+	background: var(--borde);
+}
+
+.previa-foto {
+	width: 90px;
+	height: 90px;
+	object-fit: cover;
+	border-radius: 50%;
+	background: var(--borde);
+}
+
+.contador {
+	text-align: right;
+	font-size: 14px;
+}
+
+.contador.excedido {
+	color: var(--error);
+}
+
+.zona-peligro {
+	border-color: var(--error);
+}
 </style>
 </head>
 <body>
 
-<div id="navbar"></div>
+	<div id="navbar"></div>
 
-<main class="contenedor">
+	<main class="contenedor">
 
-	<p><a href="/perfil.html">← Volver a mi perfil</a></p>
-	<h1>Configuración del perfil</h1>
+		<p>
+			<a href="/perfil.html">← Volver a mi perfil</a>
+		</p>
+		<h1>Configuración del perfil</h1>
 
-	<p id="msg" class="msg" role="status" aria-live="polite"></p>
+		<p id="msg" class="msg" role="status" aria-live="polite"></p>
 
-	<section class="tarjeta">
-		<h2>Nombre</h2>
-		<div class="grupo">
-			<label for="nombre">Nombre</label>
-			<input type="text" id="nombre" maxlength="100">
-		</div>
-		<button type="button" class="btn" id="guardarNombre">Guardar nombre</button>
-	</section>
+		<section class="tarjeta">
+			<h2>Nombre</h2>
+			<div class="grupo">
+				<label for="nombre">Nombre</label> <input type="text" id="nombre"
+					maxlength="100">
+			</div>
+			<button type="button" class="btn" id="guardarNombre">Guardar
+				nombre</button>
+		</section>
 
-	<section class="tarjeta">
-		<h2>Biografía</h2>
-		<div class="grupo">
-			<textarea id="biografia" maxlength="500" placeholder="Preséntate ante otros usuarios..."></textarea>
-			<div id="contadorBio" class="contador">0 / 500</div>
-		</div>
-		<button type="button" class="btn" id="guardarBio">Guardar biografía</button>
-	</section>
-	
-	<section class="tarjeta">
-		<h2>Privacidad</h2>
-		<label style="display:flex;align-items:center;gap:10px;font-weight:normal">
-			<input type="checkbox" id="cuentaPublica" style="width:auto"> Cuenta pública
-		</label>
-		<p id="textoPrivacidad" class="vacio"></p>
-	</section>
+		<section class="tarjeta">
+			<h2>Biografía</h2>
+			<div class="grupo">
+				<textarea id="biografia" maxlength="500"
+					placeholder="Preséntate ante otros usuarios..."></textarea>
+				<div id="contadorBio" class="contador">0 / 500</div>
+			</div>
+			<button type="button" class="btn" id="guardarBio">Guardar
+				biografía</button>
+		</section>
 
-	<section class="tarjeta">
-		<h2>Banner</h2>
-		<img id="previaBanner" class="previa-banner" alt="Banner actual">
-		<div class="acciones">
-			<input type="file" id="archivoBanner" accept="image/*" hidden>
-			<button type="button" class="btn" id="subirBanner">Cambiar banner</button>
-		</div>
-	</section>
+		<section class="tarjeta">
+			<h2>Privacidad</h2>
 
-	<section class="tarjeta">
-		<h2>Foto de perfil</h2>
-		<img id="previaFoto" class="previa-foto" alt="Foto actual">
-		<div class="acciones">
-			<input type="file" id="archivoFoto" accept="image/*" hidden>
-			<button type="button" class="btn" id="subirFoto">Cambiar foto</button>
-		</div>
-	</section>
+			<div class="grupo">
+				<label for="privacidadPerfil"> ¿Quién puede ver tu perfil? </label>
 
-	<section class="tarjeta zona-peligro">
-		<h2>Eliminar cuenta</h2>
-		<p>Se borrarán tus valoraciones, reseñas, listas, favoritos, progreso y notificaciones.
-			Las obras que subiste seguirán en el catálogo. <b>Esta acción no se puede deshacer.</b></p>
-		<div class="grupo" style="max-width:320px">
-			<label for="passwordEliminar">Confirma con tu contraseña</label>
-			<input type="password" id="passwordEliminar" autocomplete="current-password">
-		</div>
-		<button type="button" class="btn btn-peligro" id="eliminarCuenta">Eliminar mi cuenta</button>
-	</section>
+				<select id="privacidadPerfil" disabled>
+					<option value="PUBLICO">Público</option>
+					<option value="PRIVADO">Privado</option>
+					<option value="SOLO_AMIGOS">Solo amigos</option>
+				</select>
+			</div>
 
-</main>
+			<p id="textoPrivacidad" class="vacio"></p>
+		</section>
 
-<script>
+		<section class="tarjeta">
+			<h2>Banner</h2>
+			<img id="previaBanner" class="previa-banner" alt="Banner actual">
+			<div class="acciones">
+				<input type="file" id="archivoBanner" accept="image/*" hidden>
+				<button type="button" class="btn" id="subirBanner">Cambiar
+					banner</button>
+			</div>
+		</section>
+
+		<section class="tarjeta">
+			<h2>Foto de perfil</h2>
+			<img id="previaFoto" class="previa-foto" alt="Foto actual">
+			<div class="acciones">
+				<input type="file" id="archivoFoto" accept="image/*" hidden>
+				<button type="button" class="btn" id="subirFoto">Cambiar
+					foto</button>
+			</div>
+		</section>
+
+		<section class="tarjeta zona-peligro">
+			<h2>Eliminar cuenta</h2>
+			<p>
+				Se borrarán tus valoraciones, reseñas, listas, favoritos, progreso y
+				notificaciones. Las obras que subiste seguirán en el catálogo. <b>Esta
+					acción no se puede deshacer.</b>
+			</p>
+			<div class="grupo" style="max-width: 320px">
+				<label for="passwordEliminar">Confirma con tu contraseña</label> <input
+					type="password" id="passwordEliminar"
+					autocomplete="current-password">
+			</div>
+			<button type="button" class="btn btn-peligro" id="eliminarCuenta">Eliminar
+				mi cuenta</button>
+		</section>
+
+	</main>
+
+	<script>
 const $ = id => document.getElementById(id);
 const JSON_HEADERS = { "Content-Type": "application/json" };
 const MAX_BIO = 500;
@@ -105,24 +148,69 @@ function actualizarContador() {
 }
 $("biografia").addEventListener("input", actualizarContador);
 
+let privacidadGuardada = null;
+
 function textoPrivacidad() {
-	$("textoPrivacidad").textContent = $("cuentaPublica").checked
-		? "Cualquier usuario puede ver tu biografía."
-		: "Los demás usuarios solo verán tu nombre y tus imágenes.";
+
+    const textos = {
+        PUBLICO: "Cualquier usuario de Shelfie puede consultar tu perfil.",
+        PRIVADO: "Solo tú puedes consultar tu perfil.",
+        SOLO_AMIGOS: "Solo tus amigos podrán consultar tu perfil cuando esté disponible el sistema de amistad."
+    };
+
+    $("textoPrivacidad").textContent =
+        textos[$("privacidadPerfil").value] || "";
 }
 
-$("cuentaPublica").addEventListener("change", async function () {
-	const publico = this.checked;
-	const r = await Shelfie.apiSesion("/api/perfil/privacidad",
-		{ method: "PUT", headers: JSON_HEADERS, body: JSON.stringify({ publico }) });
+$("privacidadPerfil").addEventListener("change", async function () {
 
-	if (r.ok) {
-		textoPrivacidad();
-		mostrar(publico ? "Tu cuenta ahora es pública." : "Tu cuenta ahora es privada.", true);
-	} else {
-		this.checked = !publico;   // deshacemos el cambio visual
-		mostrar(textoError(r, "No se ha podido cambiar la privacidad."), false);
-	}
+    const privacidad = this.value;
+
+    this.disabled = true;
+
+    try {
+
+        const r = await Shelfie.apiSesion(
+            "/api/perfil/privacidad",
+            {
+                method: "PUT",
+                headers: JSON_HEADERS,
+                body: JSON.stringify({ privacidad })
+            }
+        );
+
+        if (r.ok) {
+
+            privacidadGuardada = privacidad;
+
+            textoPrivacidad();
+
+            mostrar("Privacidad actualizada correctamente.", true);
+
+        } else {
+
+            this.value = privacidadGuardada;
+
+            textoPrivacidad();
+
+            mostrar(
+                textoError(r, "No se ha podido cambiar la privacidad."),
+                false
+            );
+        }
+
+    } catch (error) {
+
+        this.value = privacidadGuardada;
+
+        textoPrivacidad();
+
+        mostrar("No se ha podido cambiar la privacidad.", false);
+
+    } finally {
+
+        this.disabled = false;
+    }
 });
 
 async function cargar() {
@@ -132,8 +220,13 @@ async function cargar() {
 	$("nombre").value = r.datos.nombre || "";
 	$("biografia").value = r.datos.biografia || "";
 	actualizarContador();
-	$("cuentaPublica").checked = r.datos.perfilPublico;
-	textoPrivacidad();
+	privacidadGuardada = r.datos.privacidadPerfil
+    || (r.datos.perfilPublico === false ? "PRIVADO" : "PUBLICO");
+
+$("privacidadPerfil").value = privacidadGuardada;
+$("privacidadPerfil").disabled = false;
+
+textoPrivacidad();
 	if (r.datos.bannerUrl) { $("previaBanner").src = r.datos.bannerUrl; }
 	if (r.datos.fotoPerfilUrl) { $("previaFoto").src = r.datos.fotoPerfilUrl; }
 }

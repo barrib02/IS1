@@ -36,7 +36,7 @@ public class EstanteService {
 	}
 
 	private record PorGenero(String titulo, String subtitulo, List<GeneroObra> generos, String tematicaLibros,
-			String generosPeliculas, String generosSeries) {
+			String generosPeliculas, String generosSeries, String generosVideojuegos) {
 	}
 
 	private record EntradaCache(List<SearchResultDTO> obras, long caducidad) {
@@ -54,47 +54,51 @@ public class EstanteService {
 	private static final List<PorGenero> GENEROS = List.of(
 
 			new PorGenero("Para no dormir", "Terror y suspense para dejar la luz encendida",
-					List.of(GeneroObra.TERROR, GeneroObra.THRILLER), "horror", "27|53", null),
+					List.of(GeneroObra.TERROR, GeneroObra.THRILLER), "horror", "27|53", null, null),
 
 			new PorGenero("Para ver en familia", "Planes para todas las edades",
 					List.of(GeneroObra.INFANTIL, GeneroObra.ANIMACION, GeneroObra.JUVENIL), "juvenile fiction",
-					"10751|16", "10751|16"),
+					"10751|16", "10751|16", "family"),
 
 			new PorGenero("Mundos que no existen", "Fantasía y ciencia ficción para escapar de la realidad",
-					List.of(GeneroObra.FANTASIA, GeneroObra.CIENCIA_FICCION), "fantasy", "14|878", "10765"),
+					List.of(GeneroObra.FANTASIA, GeneroObra.CIENCIA_FICCION), "fantasy", "14|878", "10765",
+					"role-playing-games-rpg"),
 
 			new PorGenero("Para llorar a gusto", "Dramas y romances que te dejan el corazón blandito",
-					List.of(GeneroObra.DRAMA, GeneroObra.ROMANCE), "romance", "18|10749", "18"),
+					List.of(GeneroObra.DRAMA, GeneroObra.ROMANCE), "romance", "18|10749", "18", null),
 
 			new PorGenero("¿Quién fue el culpable?", "Misterio y crimen para los que no pueden parar",
-					List.of(GeneroObra.MISTERIO, GeneroObra.CRIMEN), "mystery", "9648|80", "9648|80"),
+					List.of(GeneroObra.MISTERIO, GeneroObra.CRIMEN), "mystery", "9648|80", "9648|80", null),
 
 			new PorGenero("Descarga de adrenalina", "Acción y aventura sin un respiro",
-					List.of(GeneroObra.ACCION, GeneroObra.AVENTURA), "adventure", "28|12", "10759"),
+					List.of(GeneroObra.ACCION, GeneroObra.AVENTURA), "adventure", "28|12", "10759", "action"),
 
 			new PorGenero("Risas aseguradas", "Comedias para desconectar", List.of(GeneroObra.COMEDIA), "humor", "35",
-					"35"),
+					"35", null),
 
 			new PorGenero("Para jugar con amigos", "Multijugador, deportes y carreras",
-					List.of(GeneroObra.MULTIJUGADOR, GeneroObra.DEPORTES, GeneroObra.CARRERAS), null, null, null),
+					List.of(GeneroObra.MULTIJUGADOR, GeneroObra.DEPORTES, GeneroObra.CARRERAS), null, null, null,
+					"sports"),
 
 			new PorGenero("Basado en hechos reales", "Documentales y relatos históricos",
-					List.of(GeneroObra.DOCUMENTAL, GeneroObra.HISTORICO), "history", "99|36", "99"));
+					List.of(GeneroObra.DOCUMENTAL, GeneroObra.HISTORICO), "history", "99|36", "99", null));
 
 	private final ObraRepository obraRepository;
 	private final GoogleBooksService googleBooksService;
 	private final TmdbService tmdbService;
+	private final RawgService rawgService;
 
 	private final JsonMapper jsonMapper = JsonMapper.builder().build();
 
 	private final Map<String, EntradaCache> cache = new ConcurrentHashMap<>();
 
-	public EstanteService(ObraRepository obraRepository, GoogleBooksService googleBooksService,
-			TmdbService tmdbService) {
+	public EstanteService(ObraRepository obraRepository, GoogleBooksService googleBooksService, TmdbService tmdbService,
+			RawgService rawgService) {
 
 		this.obraRepository = obraRepository;
 		this.googleBooksService = googleBooksService;
 		this.tmdbService = tmdbService;
+		this.rawgService = rawgService;
 	}
 
 	// Genera los estantes generales o los de un tipo concreto.
@@ -147,8 +151,8 @@ public class EstanteService {
 		case SERIE -> consultarConCache("series-populares",
 				() -> adaptarTmdb(tmdbService.obtenerSeriesPopulares(), TipoObra.SERIE));
 
-		// Se completará cuando integremos RAWG.
-		case VIDEOJUEGO -> List.of();
+		case VIDEOJUEGO ->
+			consultarConCache("videojuegos-populares", () -> adaptarRawg(rawgService.obtenerVideojuegosPopulares()));
 		};
 	}
 
@@ -174,6 +178,11 @@ public class EstanteService {
 
 			obras.addAll(consultarConCache("series-" + genero.generosSeries(),
 					() -> adaptarTmdb(tmdbService.obtenerSeriesPorGenero(genero.generosSeries()), TipoObra.SERIE)));
+		}
+		if ((tipo == null || tipo == TipoObra.VIDEOJUEGO) && genero.generosVideojuegos() != null) {
+
+			obras.addAll(consultarConCache("videojuegos-" + genero.generosVideojuegos(),
+					() -> adaptarRawg(rawgService.obtenerVideojuegosPorGenero(genero.generosVideojuegos()))));
 		}
 
 		// Alterna los tipos para que los libros no ocupen
@@ -247,6 +256,44 @@ public class EstanteService {
 			if (!poster.isBlank() && !"null".equals(poster)) {
 
 				dto.setImagenUrl("https://image.tmdb.org/t/p/w500" + poster);
+			}
+
+			obras.add(dto);
+		}
+
+		return obras.stream().limit(POR_ESTANTE).toList();
+	}
+
+	// Convierte los videojuegos de RAWG en el formato común.
+	private List<SearchResultDTO> adaptarRawg(String json) {
+
+		List<SearchResultDTO> obras = new ArrayList<>();
+
+		if (json == null || json.isBlank()) {
+			return obras;
+		}
+
+		JsonNode raiz = jsonMapper.readTree(json);
+
+		for (JsonNode juego : raiz.path("results")) {
+
+			String id = juego.path("id").asText("");
+			String titulo = juego.path("name").asText("");
+
+			if (id.isBlank() || titulo.isBlank()) {
+				continue;
+			}
+
+			SearchResultDTO dto = new SearchResultDTO(null, titulo, TipoObra.VIDEOJUEGO.name());
+
+			dto.setFuenteApi("RAWG");
+			dto.setIdExterno(id);
+
+			String portada = juego.path("background_image").asText("");
+
+			if (!portada.isBlank() && !"null".equals(portada)) {
+
+				dto.setImagenUrl(portada.replaceFirst("^http:", "https:"));
 			}
 
 			obras.add(dto);

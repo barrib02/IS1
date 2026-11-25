@@ -22,6 +22,7 @@ class EstanteServiceTest {
 	private ObraRepository obraRepository;
 	private GoogleBooksService googleBooksService;
 	private TmdbService tmdbService;
+	private RawgService rawgService;
 	private EstanteService estanteService;
 
 	private static final String LIBROS_JSON = """
@@ -64,20 +65,34 @@ class EstanteServiceTest {
 			}
 			""";
 
+	private static final String VIDEOJUEGOS_JSON = """
+			{
+			    "results": [
+			        {
+			            "id": 12345,
+			            "name": "Minecraft",
+			            "background_image": "https://example.com/minecraft.jpg"
+			        }
+			    ]
+			}
+			""";
+
 	@BeforeEach
 	void preparar() {
 
 		obraRepository = mock(ObraRepository.class);
 		googleBooksService = mock(GoogleBooksService.class);
 		tmdbService = mock(TmdbService.class);
+		rawgService = mock(RawgService.class);
 
-		estanteService = new EstanteService(obraRepository, googleBooksService, tmdbService);
+		estanteService = new EstanteService(obraRepository, googleBooksService, tmdbService, rawgService);
 
-		// Respuestas simuladas de las APIs.
+		// Respuestas simuladas de Google Books.
 		when(googleBooksService.obtenerLibrosRecomendados()).thenReturn(LIBROS_JSON);
 
 		when(googleBooksService.buscarLibrosPorTematica(anyString())).thenReturn(LIBROS_JSON);
 
+		// Respuestas simuladas de TMDB.
 		when(tmdbService.obtenerPeliculasPopulares()).thenReturn(PELICULAS_JSON);
 
 		when(tmdbService.obtenerSeriesPopulares()).thenReturn(SERIES_JSON);
@@ -85,6 +100,11 @@ class EstanteServiceTest {
 		when(tmdbService.obtenerPeliculasPorGenero(anyString())).thenReturn(PELICULAS_JSON);
 
 		when(tmdbService.obtenerSeriesPorGenero(anyString())).thenReturn(SERIES_JSON);
+
+		// Respuestas simuladas de RAWG.
+		when(rawgService.obtenerVideojuegosPopulares()).thenReturn(VIDEOJUEGOS_JSON);
+
+		when(rawgService.obtenerVideojuegosPorGenero(anyString())).thenReturn(VIDEOJUEGOS_JSON);
 
 		// Por defecto, Neon no contiene obras para los estantes.
 		when(obraRepository.buscarObrasConResenas(nullable(TipoObra.class), any())).thenReturn(List.of());
@@ -101,15 +121,18 @@ class EstanteServiceTest {
 	@Test
 	void debeGenerarEstantesGenerales() {
 
-		List<EstanteResponse> resultado = estanteService.obtenerEstantes(null);
+	    List<EstanteResponse> resultado =
+	            estanteService.obtenerEstantes(null);
 
-		assertFalse(resultado.isEmpty());
+	    assertFalse(resultado.isEmpty());
 
-		assertNotNull(buscarEstante(resultado, "Libros para perderse"));
+	    assertNotNull(buscarEstante(resultado, "Libros para perderse"));
 
-		assertNotNull(buscarEstante(resultado, "Noches de cine"));
+	    assertNotNull(buscarEstante(resultado, "Noches de cine"));
 
-		assertNotNull(buscarEstante(resultado, "Maratones de fin de semana"));
+	    assertNotNull(buscarEstante(resultado, "Maratones de fin de semana"));
+
+	    assertNotNull(buscarEstante(resultado, "Una partida más"));
 	}
 
 	@Test
@@ -218,13 +241,15 @@ class EstanteServiceTest {
 
 		List<SearchResultDTO> obras = estante.getObras();
 
-		assertEquals(3, obras.size());
+		assertEquals(4, obras.size());
 
 		assertTrue(obras.stream().anyMatch(o -> "LIBRO".equals(o.getTipo())));
 
 		assertTrue(obras.stream().anyMatch(o -> "PELICULA".equals(o.getTipo())));
 
 		assertTrue(obras.stream().anyMatch(o -> "SERIE".equals(o.getTipo())));
+
+		assertTrue(obras.stream().anyMatch(o -> "VIDEOJUEGO".equals(o.getTipo())));
 	}
 
 	@Test
@@ -346,7 +371,10 @@ class EstanteServiceTest {
 
 		assertNotNull(buscarEstante(resultado, "Libros para perderse"));
 
-		assertTrue(resultado.stream().flatMap(e -> e.getObras().stream()).allMatch(o -> "LIBRO".equals(o.getTipo())));
+		assertNotNull(buscarEstante(resultado, "Una partida más"));
+
+		assertTrue(resultado.stream().flatMap(e -> e.getObras().stream())
+				.allMatch(o -> "LIBRO".equals(o.getTipo()) || "VIDEOJUEGO".equals(o.getTipo())));
 	}
 
 	@Test
@@ -405,5 +433,101 @@ class EstanteServiceTest {
 		verify(obraRepository).buscarObrasOriginalesValidadas(isNull(), eq(PageRequest.of(0, 10)));
 
 		verifyNoMoreInteractions(obraRepository);
+	}
+
+	@Test
+	void debeAdaptarVideojuegosDeRawg() {
+
+		List<EstanteResponse> resultado = estanteService.obtenerEstantes(TipoObra.VIDEOJUEGO);
+
+		SearchResultDTO juego = buscarEstante(resultado, "Recomendados").getObras().get(0);
+
+		assertEquals("Minecraft", juego.getTitulo());
+		assertEquals("VIDEOJUEGO", juego.getTipo());
+		assertEquals("RAWG", juego.getFuenteApi());
+		assertEquals("12345", juego.getIdExterno());
+
+		assertEquals("https://example.com/minecraft.jpg", juego.getImagenUrl());
+
+		assertNull(juego.getId());
+	}
+
+	@Test
+	void debeRespetarFiltroDeVideojuegos() {
+
+		List<EstanteResponse> resultado = estanteService.obtenerEstantes(TipoObra.VIDEOJUEGO);
+
+		assertFalse(resultado.isEmpty());
+
+		assertTrue(
+				resultado.stream().flatMap(e -> e.getObras().stream()).allMatch(o -> "VIDEOJUEGO".equals(o.getTipo())));
+
+		verifyNoInteractions(googleBooksService, tmdbService);
+
+		verify(rawgService).obtenerVideojuegosPopulares();
+
+		verify(rawgService).obtenerVideojuegosPorGenero("action");
+	}
+
+	@Test
+	void debeReutilizarCacheDeRawg() {
+
+		estanteService.obtenerEstantes(TipoObra.VIDEOJUEGO);
+		estanteService.obtenerEstantes(TipoObra.VIDEOJUEGO);
+
+		verify(rawgService, times(1)).obtenerVideojuegosPopulares();
+
+		verify(rawgService, times(1)).obtenerVideojuegosPorGenero("action");
+	}
+
+	@Test
+	void debeSeguirFuncionandoSiFallaRawg() {
+
+		when(rawgService.obtenerVideojuegosPopulares()).thenThrow(new RestClientException("RAWG no disponible"));
+
+		when(rawgService.obtenerVideojuegosPorGenero(anyString()))
+				.thenThrow(new RestClientException("RAWG no disponible"));
+
+		List<EstanteResponse> resultado = assertDoesNotThrow(() -> estanteService.obtenerEstantes(null));
+
+		assertNotNull(buscarEstante(resultado, "Libros para perderse"));
+
+		assertNotNull(buscarEstante(resultado, "Noches de cine"));
+
+		assertNotNull(buscarEstante(resultado, "Maratones de fin de semana"));
+
+		assertFalse(
+				resultado.stream().flatMap(e -> e.getObras().stream()).anyMatch(o -> "VIDEOJUEGO".equals(o.getTipo())));
+	}
+
+	@Test
+	void debeIgnorarVideojuegosSinIdentificadorOTitulo() {
+
+		when(rawgService.obtenerVideojuegosPopulares()).thenReturn("""
+				{
+				    "results": [
+				        {
+				            "name": "Juego sin ID"
+				        },
+				        {
+				            "id": 111
+				        },
+				        {
+				            "id": 222,
+				            "name": "Juego valido"
+				        }
+				    ]
+				}
+				""");
+
+		List<EstanteResponse> resultado = estanteService.obtenerEstantes(TipoObra.VIDEOJUEGO);
+
+		List<SearchResultDTO> obras = buscarEstante(resultado, "Recomendados").getObras();
+
+		assertEquals(1, obras.size());
+
+		assertEquals("222", obras.get(0).getIdExterno());
+
+		assertEquals("Juego valido", obras.get(0).getTitulo());
 	}
 }

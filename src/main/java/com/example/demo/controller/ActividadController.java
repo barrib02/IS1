@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.demo.entity.Actividad;
+import com.example.demo.dto.ActividadResponse;
 import com.example.demo.entity.Usuario;
 import com.example.demo.service.ActividadService;
 import com.example.demo.service.PerfilService;
@@ -17,25 +17,21 @@ import com.example.demo.service.PerfilService;
 @RequestMapping("/api/actividad")
 public class ActividadController {
 
-    private final ActividadService actividadService;
-    private final PerfilService perfilService;
+	private final ActividadService actividadService;
+	private final PerfilService perfilService;
 
-    public ActividadController(
-            ActividadService actividadService,
-            PerfilService perfilService) {
+	public ActividadController(ActividadService actividadService, PerfilService perfilService) {
 
-        this.actividadService = actividadService;
-        this.perfilService = perfilService;
-    }
+		this.actividadService = actividadService;
+		this.perfilService = perfilService;
+	}
 
-    // Obtener la actividad reciente del usuario autenticado.
-    @GetMapping
-    public List<Actividad> obtenerMiActividad(Principal principal) {
+	// Obtener el historial del usuario autenticado.
+	@GetMapping
+	public List<ActividadResponse> obtenerMiActividad(Principal principal) {
 
-        Usuario usuario = perfilService
-                .obtenerUsuarioPorEmail(principal.getName());
+		Usuario usuario = perfilService.obtenerUsuarioPorEmail(principal.getName());
 
-        return actividadService
-                .obtenerActividadReciente(usuario.getId());
-    }
+		return actividadService.obtenerHistorial(usuario.getId());
+	}
 }

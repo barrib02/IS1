@@ -1,4 +1,4 @@
-package com.example.demo;
+package com.example.demo.service;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -97,7 +97,7 @@ class ResenaServiceTest {
 	}
 
 	@Test
-	void editarResenaNoRegistraNuevaActividad() {
+	void editarResenaRegistraNuevaActividad() {
 
 		ResenaRepository repo = mock(ResenaRepository.class);
 		ActividadService actividadService = mock(ActividadService.class);
@@ -114,8 +114,8 @@ class ResenaServiceTest {
 		when(repo.save(any(Resena.class))).thenReturn(resena);
 
 		service.editarResena(1L, "Reseña modificada");
-
-		verify(actividadService, never()).registrarActividad(anyLong(), anyLong(), anyString(), anyString());
+		// Comprobamos que se registra la modificación de la reseña.
+		verify(actividadService).registrarActividad(1L, 10L, "RESENA", "Ha actualizado su reseña");
 	}
 
 }

@@ -6,6 +6,9 @@ import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
 
 import java.util.function.Function;
+import java.net.URI;
+import org.mockito.ArgumentCaptor;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -204,6 +207,59 @@ class TmdbServiceTest {
 
 		assertThrows(org.springframework.web.client.RestClientException.class,
 				() -> tmdbService.obtenerPeliculasPopulares());
+	}
+
+	@Test
+	void debeObtenerEpisodiosDeUnaTemporada() {
+
+		String json = """
+				{
+				    "season_number": 2,
+				    "episodes": [
+				        {"episode_number": 1, "name": "Episodio 1"},
+				        {"episode_number": 2, "name": "Episodio 2"}
+				    ]
+				}
+				""";
+
+		when(respuestaHttp.body(String.class)).thenReturn(json);
+
+		String resultado = tmdbService.obtenerTemporada("1399", 2);
+
+		assertEquals(json, resultado);
+
+		verify(restClient).get();
+		verify(respuestaHttp).body(String.class);
+	}
+
+	@Test
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	void debeConstruirUriCorrectaParaTemporada() {
+
+		when(respuestaHttp.body(String.class)).thenReturn("{}");
+
+		tmdbService.obtenerTemporada("1399", 2);
+
+		ArgumentCaptor<Function<UriBuilder, URI>> captor = ArgumentCaptor.forClass((Class) Function.class);
+
+		verify(peticion).uri(captor.capture());
+
+		URI uri = captor.getValue().apply(UriComponentsBuilder.fromUriString("https://api.themoviedb.org/3"));
+
+		assertEquals("/3/tv/1399/season/2", uri.getPath());
+
+		assertTrue(uri.getQuery().contains("api_key=clave-prueba"));
+		assertTrue(uri.getQuery().contains("language=es-ES"));
+	}
+
+	@Test
+	void debePropagarErrorAlConsultarTemporada() {
+
+		when(respuestaHttp.body(String.class))
+				.thenThrow(new org.springframework.web.client.RestClientException("TMDB no disponible"));
+
+		assertThrows(org.springframework.web.client.RestClientException.class,
+				() -> tmdbService.obtenerTemporada("1399", 2));
 	}
 
 }

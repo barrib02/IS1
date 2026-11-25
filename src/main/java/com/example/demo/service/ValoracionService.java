@@ -34,7 +34,8 @@ public class ValoracionService {
 		return valoracionGuardada;
 	}
 
-	// Editar una valoración existente
+	// Editar una valoración y registrar el cambio.
+	@Transactional
 	public Valoracion editarValoracion(Long id, Integer puntuacion) {
 
 		validarPuntuacion(puntuacion);
@@ -42,9 +43,20 @@ public class ValoracionService {
 		Valoracion valoracion = valoracionRepository.findById(id)
 				.orElseThrow(() -> new IllegalArgumentException("Valoración no encontrada"));
 
+		// Evitamos registrar actividades si no cambia la puntuación.
+		if (java.util.Objects.equals(valoracion.getPuntuacion(), puntuacion)) {
+
+			return valoracion;
+		}
+
 		valoracion.setPuntuacion(puntuacion);
 
-		return valoracionRepository.save(valoracion);
+		Valoracion guardada = valoracionRepository.save(valoracion);
+
+		actividadService.registrarActividad(guardada.getUsuarioId(), guardada.getObraId(), "VALORACION",
+				"Ha actualizado su valoración a " + guardada.getPuntuacion() + " estrellas");
+
+		return guardada;
 	}
 
 	// Consultar una valoración por su ID

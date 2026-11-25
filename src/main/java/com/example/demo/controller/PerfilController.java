@@ -49,7 +49,7 @@ public class PerfilController {
 
 		return perfilService.actualizarBiografia(auth.getName(), request.getBiografia());
 	}
-	
+
 	// Editar mi nombre.
 	@PutMapping("/nombre")
 	public PerfilResponse editarNombre(@Valid @RequestBody NombreRequest request, Authentication auth) {
@@ -63,9 +63,11 @@ public class PerfilController {
 	}
 
 	// Cuenta pública o privada.
+	// H5.3 - Cambiar la privacidad del perfil.
 	@PutMapping("/privacidad")
-	public PerfilResponse cambiarPrivacidad(@RequestBody PrivacidadRequest request, Authentication auth) {
-		return perfilService.actualizarPrivacidad(auth.getName(), request.isPublico());
+	public PerfilResponse cambiarPrivacidad(@Valid @RequestBody PrivacidadRequest request, Authentication auth) {
+
+		return perfilService.actualizarPrivacidad(auth.getName(), request.getPrivacidad());
 	}
 
 	// Errores de negocio (usuario no encontrado, biografía demasiado larga).
@@ -81,30 +83,25 @@ public class PerfilController {
 	public String manejarValidacion(MethodArgumentNotValidException error) {
 		return error.getBindingResult().getFieldErrors().get(0).getDefaultMessage();
 	}
-	
 
-    // H4.2 - Subir o cambiar la foto de perfil
-    @PostMapping("/foto")
-    public Map<String, String> subirFoto(
-            @RequestParam("archivo") MultipartFile archivo,
-            Authentication auth) throws IOException {
+	// H4.2 - Subir o cambiar la foto de perfil
+	@PostMapping("/foto")
+	public Map<String, String> subirFoto(@RequestParam("archivo") MultipartFile archivo, Authentication auth)
+			throws IOException {
 
-        String url = perfilService.actualizarFotoPerfil(
-                auth.getName(), archivo);
+		String url = perfilService.actualizarFotoPerfil(auth.getName(), archivo);
 
-        return Map.of("url", url);
-    }
+		return Map.of("url", url);
+	}
 
-    // H4.4 - Subir o cambiar el banner
-    @PostMapping("/banner")
-    public Map<String, String> subirBanner(
-            @RequestParam("archivo") MultipartFile archivo,
-            Authentication auth) throws IOException {
+	// H4.4 - Subir o cambiar el banner
+	@PostMapping("/banner")
+	public Map<String, String> subirBanner(@RequestParam("archivo") MultipartFile archivo, Authentication auth)
+			throws IOException {
 
-        String url = perfilService.actualizarBanner(
-                auth.getName(), archivo);
+		String url = perfilService.actualizarBanner(auth.getName(), archivo);
 
-        return Map.of("url", url);
-    }
+		return Map.of("url", url);
+	}
 
 }

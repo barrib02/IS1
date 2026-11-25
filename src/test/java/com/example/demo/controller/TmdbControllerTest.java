@@ -8,6 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.example.demo.service.TmdbService;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class TmdbControllerTest {
 
@@ -115,6 +116,42 @@ class TmdbControllerTest {
 
 		// Verificamos que utiliza el servicio correspondiente.
 		verify(tmdbService).obtenerPlataformasSerie("1399");
+	}
+
+	@Test
+	void debeDevolverEpisodiosDeUnaTemporada() {
+
+		String json = """
+				{
+				    "season_number": 2,
+				    "episodes": [
+				        {"episode_number": 1, "name": "Episodio 1"},
+				        {"episode_number": 2, "name": "Episodio 2"}
+				    ]
+				}
+				""";
+
+		when(tmdbService.obtenerTemporada("1399", 2)).thenReturn(json);
+
+		String resultado = tmdbController.obtenerTemporada("1399", 2);
+
+		assertEquals(json, resultado);
+
+		verify(tmdbService).obtenerTemporada("1399", 2);
+		verifyNoMoreInteractions(tmdbService);
+	}
+
+	@Test
+	void debePropagarErrorAlConsultarTemporada() {
+
+		when(tmdbService.obtenerTemporada("1399", 2))
+				.thenThrow(new org.springframework.web.client.RestClientException("TMDB no disponible"));
+
+		assertThrows(org.springframework.web.client.RestClientException.class,
+				() -> tmdbController.obtenerTemporada("1399", 2));
+
+		verify(tmdbService).obtenerTemporada("1399", 2);
+		verifyNoMoreInteractions(tmdbService);
 	}
 
 }

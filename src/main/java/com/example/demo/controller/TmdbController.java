@@ -31,6 +31,13 @@ public class TmdbController {
 		return tmdbService.obtenerSerie(id);
 	}
 
+	// Devuelve la información y los episodios de una temporada.
+	@GetMapping(value = "/serie/{id}/temporada/{temporada}", produces = MediaType.APPLICATION_JSON_VALUE)
+	public String obtenerTemporada(@PathVariable String id, @PathVariable int temporada) {
+
+		return tmdbService.obtenerTemporada(id, temporada);
+	}
+
 	/**
 	 * Devuelve las plataformas disponibles para una película.
 	 */

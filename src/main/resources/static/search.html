@@ -109,87 +109,77 @@ async function pedir(url) {
 
 // ---------- Buscar (botón, Intro o cambio de filtro) ----------
 async function ejecutar() {
-	const texto = $("titulo").value.trim();
-	const tipo = $("tipo").value;
-	const miPeticion = ++numeroPeticion;
-	ocultarSugerencias();
 
-	let datos;
+    const texto = $("titulo").value.trim();
+    const tipo = $("tipo").value;
+    const miPeticion = ++numeroPeticion;
 
-	if (modo === "obras") {
-		if (!texto) {
-			// Sin texto: Discover con estantes (filtrado por tipo si hay uno elegido).
-			$("encabezado").textContent = tipo ? "Descubre " + NOMBRE_PLURAL[tipo] : "Descubre";
-			datos = await pedir("/explorar/estantes" + (tipo ? "?tipo=" + enc(tipo) : ""));
-			if (miPeticion === numeroPeticion) { pintarEstantes(datos); }
+    ocultarSugerencias();
 
-		} else {
-		    $("encabezado").textContent = "Resultados";
+    let datos;
 
-		    if (tipo === "LIBRO") {
-		        // Buscamos libros en Google Books.
-		        $("estado").className = "msg";
-		        $("estado").textContent = "Buscando libros…";
+    if (modo === "obras") {
 
-		        try {
-		            const respuesta = await Shelfie.api(
-		                "/api/googlebooks/buscar?titulo=" + enc(texto)
-		            );
+        if (!texto) {
 
-		            if (miPeticion !== numeroPeticion) return;
+            $("encabezado").textContent = tipo
+                ? "Descubre " + NOMBRE_PLURAL[tipo]
+                : "Descubre";
 
-		            if (!respuesta.ok) {
-		                throw new Error("Error al consultar Google Books");
-		            }
+            datos = await pedir(
+                "/explorar/estantes"
+                + (tipo ? "?tipo=" + enc(tipo) : "")
+            );
 
-		            datos = adaptarLibrosGoogle(respuesta.datos || {});
-		            $("estado").textContent = "";
-		        } catch (error) {
-		            if (miPeticion !== numeroPeticion) return;
+            if (miPeticion === numeroPeticion) {
+                pintarEstantes(datos);
+            }
 
-		            datos = [];
-		            $("estado").className = "msg error";
-		            $("estado").textContent = "No se han podido buscar los libros.";
-		        }
-		    } else {
-		        // Mantenemos las búsquedas actuales para los demás tipos.
-		        datos = await pedir(
-		            "/search?titulo=" + enc(texto) + "&tipo=" + enc(tipo)
-		        );
-		    }
+        } else {
 
-		    if (miPeticion === numeroPeticion) {
-		        pintarObras(datos);
-		    }
-		}
+            $("encabezado").textContent = "Resultados";
 
-	} else {
-		if (!texto) {
-			$("encabezado").textContent = "Listas públicas";
-			datos = await pedir("/api/listas/publicas");
-		} else {
-			$("encabezado").textContent = "Resultados";
-			datos = await pedir("/api/listas/buscar?texto=" + enc(texto));
-		}
-		if (miPeticion === numeroPeticion) { pintarListas(datos); }
-	}
+            const parametros = new URLSearchParams({
+                titulo: texto
+            });
+
+            if (tipo) {
+                parametros.set("tipo", tipo);
+            }
+
+            datos = await pedir(
+                "/search?" + parametros.toString()
+            );
+
+            if (miPeticion === numeroPeticion) {
+                pintarObras(datos);
+            }
+        }
+
+    } else {
+
+        if (!texto) {
+
+            $("encabezado").textContent = "Listas públicas";
+
+            datos = await pedir("/api/listas/publicas");
+
+        } else {
+
+            $("encabezado").textContent = "Resultados";
+
+            datos = await pedir(
+                "/api/listas/buscar?texto=" + enc(texto)
+            );
+        }
+
+        if (miPeticion === numeroPeticion) {
+            pintarListas(datos);
+        }
+    }
 }
 
 // ---------- Pintar resultados ----------
-
-function adaptarLibrosGoogle(datos) {
-    return (datos.items || []).map(libro => ({
-        fuenteApi: "GOOGLE_BOOKS",
-        idExterno: libro.id,
-        tipo: "LIBRO",
-        titulo: libro.volumeInfo?.title || "Sin título",
-        autor: (libro.volumeInfo?.authors || []).join(", "),
-        descripcion: libro.volumeInfo?.description || "",
-        portada: libro.volumeInfo?.imageLinks?.thumbnail || null
-    }));
-}
-
-
 
 /**
  * Genera el enlace de una obra.
@@ -198,14 +188,17 @@ function adaptarLibrosGoogle(datos) {
  */
  
  function enlaceObra(obra) {
-
-	    // Obras procedentes de APIs externas.
 	    if (
 	        obra.idExterno &&
 	        (
-	            (obra.fuenteApi === "GOOGLE_BOOKS" && obra.tipo === "LIBRO") ||
+	            (obra.fuenteApi === "GOOGLE_BOOKS" &&
+	                obra.tipo === "LIBRO") ||
+
 	            (obra.fuenteApi === "TMDB" &&
-	                ["PELICULA", "SERIE"].includes(obra.tipo))
+	                ["PELICULA", "SERIE"].includes(obra.tipo)) ||
+
+	            (obra.fuenteApi === "RAWG" &&
+	                obra.tipo === "VIDEOJUEGO")
 	        )
 	    ) {
 	        const parametros = new URLSearchParams({
@@ -217,7 +210,6 @@ function adaptarLibrosGoogle(datos) {
 	        return "/work.html?" + parametros.toString();
 	    }
 
-	    // Obras originales almacenadas en Neon.
 	    if (obra.id != null) {
 	        return "/work.html?id=" + encodeURIComponent(obra.id);
 	    }
@@ -345,8 +337,14 @@ function ocultarSugerencias() {
 
 async function sugerir() {
 	const texto = $("titulo").value.trim();
-	if (texto.length < 2) { ocultarSugerencias(); return; }
+	if (controladorSug) {
+	    controladorSug.abort();
+	}
 
+	if (texto.length < 3) {
+	    ocultarSugerencias();
+	    return;
+	}
 	// Cancelamos la petición anterior si seguía en curso.
 	if (controladorSug) { controladorSug.abort(); }
 	controladorSug = new AbortController();
@@ -415,7 +413,9 @@ $("buscar").addEventListener("click", ejecutar);
 $("modoObras").addEventListener("click", () => cambiarModo("obras"));
 $("modoListas").addEventListener("click", () => cambiarModo("listas"));
 $("tipo").addEventListener("change", ejecutar);                      // filtrar al elegir tipo
-$("titulo").addEventListener("input", Shelfie.debounce(sugerir, 250)); // 1 petición cada 250 ms como mucho
+$("titulo").addEventListener(
+	    "input", Shelfie.debounce(sugerir, 700)
+	);
 
 $("titulo").addEventListener("keydown", e => {
 	if (e.key === "Enter") { e.preventDefault(); ejecutar(); }       // buscar con Intro

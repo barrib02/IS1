@@ -1,4 +1,4 @@
-package com.example.demo;
+package com.example.demo.service;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -8,7 +8,9 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
-
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+import com.example.demo.entity.PrivacidadPerfil;
 import com.example.demo.dto.PerfilResponse;
 import com.example.demo.entity.Usuario;
 import com.example.demo.repository.UsuarioRepository;
@@ -235,7 +237,7 @@ class PerfilServiceTest {
 		verifyNoInteractions(cloudinaryService);
 		verify(repo, never()).save(any(Usuario.class));
 	}
-	
+
 	@Test
 	void actualizarNombre_guardaElNombreLimpio() {
 		UsuarioRepository repo = mock(UsuarioRepository.class);
@@ -256,21 +258,112 @@ class PerfilServiceTest {
 
 		assertThrows(IllegalArgumentException.class, () -> service.actualizarNombre("a@a.com", "   "));
 	}
-	
+
 	@Test
-	void perfilPrivadoOcultaLaBiografiaAOtrosPeroNoAlDueno() {
+	void perfilPrivadoImpideAccesoAOtrosPeroNoAlDueno() {
+
+		UsuarioRepository repo = mock(UsuarioRepository.class);
+
+		PerfilService service = new PerfilService(repo, mock(CloudinaryService.class));
+
+		Usuario usuario = new Usuario();
+
+		usuario.setNombre("Kevin");
+		usuario.setEmail("kevin@gmail.com");
+		usuario.setBiografia("secreta");
+		usuario.setPrivacidadPerfil(PrivacidadPerfil.PRIVADO);
+
+		when(repo.findById(1L)).thenReturn(Optional.of(usuario));
+
+		ResponseStatusException error = assertThrows(ResponseStatusException.class,
+				() -> service.obtenerPerfilPorId(1L, "otro@a.com"));
+
+		assertEquals(HttpStatus.FORBIDDEN, error.getStatusCode());
+
+		PerfilResponse perfil = service.obtenerPerfilPorId(1L, "kevin@gmail.com");
+
+		assertEquals("secreta", perfil.getBiografia());
+		assertEquals(PrivacidadPerfil.PRIVADO, perfil.getPrivacidadPerfil());
+	}
+
+	@Test
+	void perfilPublicoPermiteAccesoAOtrosUsuarios() {
+
 		UsuarioRepository repo = mock(UsuarioRepository.class);
 		PerfilService service = new PerfilService(repo, mock(CloudinaryService.class));
 
 		Usuario usuario = new Usuario();
-		usuario.setNombre("Kevin");
-		usuario.setEmail("kevin@gmail.com");
-		usuario.setBiografia("secreta");
-		usuario.setPerfilPublico(false);
+
+		usuario.setEmail("dueno@test.com");
+		usuario.setBiografia("Mi biografía");
+		usuario.setPrivacidadPerfil(PrivacidadPerfil.PUBLICO);
+
 		when(repo.findById(1L)).thenReturn(Optional.of(usuario));
 
-		assertNull(service.obtenerPerfilPorId(1L, "otro@a.com").getBiografia());
-		assertEquals("secreta", service.obtenerPerfilPorId(1L, "kevin@gmail.com").getBiografia());
+		PerfilResponse resultado = service.obtenerPerfilPorId(1L, "otro@test.com");
+
+		assertEquals("Mi biografía", resultado.getBiografia());
+		assertEquals(PrivacidadPerfil.PUBLICO, resultado.getPrivacidadPerfil());
+	}
+
+	@Test
+	void perfilSoloAmigosRestringeAccesoProvisionalmente() {
+
+		UsuarioRepository repo = mock(UsuarioRepository.class);
+		PerfilService service = new PerfilService(repo, mock(CloudinaryService.class));
+
+		Usuario usuario = new Usuario();
+
+		usuario.setEmail("dueno@test.com");
+		usuario.setBiografia("Mi biografía");
+		usuario.setPrivacidadPerfil(PrivacidadPerfil.SOLO_AMIGOS);
+
+		when(repo.findById(1L)).thenReturn(Optional.of(usuario));
+
+		ResponseStatusException error = assertThrows(ResponseStatusException.class,
+				() -> service.obtenerPerfilPorId(1L, "otro@test.com"));
+
+		assertEquals(HttpStatus.FORBIDDEN, error.getStatusCode());
+
+		PerfilResponse resultado = service.obtenerPerfilPorId(1L, "dueno@test.com");
+
+		assertEquals("Mi biografía", resultado.getBiografia());
+	}
+
+	@Test
+	void actualizarPrivacidadGuardaLosTresNiveles() {
+
+		UsuarioRepository repo = mock(UsuarioRepository.class);
+		PerfilService service = new PerfilService(repo, mock(CloudinaryService.class));
+
+		Usuario usuario = new Usuario();
+
+		usuario.setEmail("prueba@test.com");
+
+		when(repo.findByEmail("prueba@test.com")).thenReturn(Optional.of(usuario));
+
+		for (PrivacidadPerfil privacidad : PrivacidadPerfil.values()) {
+
+			PerfilResponse resultado = service.actualizarPrivacidad("prueba@test.com", privacidad);
+
+			assertEquals(privacidad, usuario.getPrivacidadPerfil());
+			assertEquals(privacidad, resultado.getPrivacidadPerfil());
+
+			assertEquals(privacidad == PrivacidadPerfil.PUBLICO, resultado.isPerfilPublico());
+		}
+
+		verify(repo, times(3)).save(usuario);
+	}
+
+	@Test
+	void actualizarPrivacidadRechazaValorNulo() {
+
+		UsuarioRepository repo = mock(UsuarioRepository.class);
+		PerfilService service = new PerfilService(repo, mock(CloudinaryService.class));
+
+		assertThrows(IllegalArgumentException.class, () -> service.actualizarPrivacidad("prueba@test.com", null));
+
+		verifyNoInteractions(repo);
 	}
 
 }

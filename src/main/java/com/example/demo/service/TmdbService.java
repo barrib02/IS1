@@ -63,6 +63,14 @@ public class TmdbService {
 				.queryParam("language", "es-ES").build(idExterno)).retrieve().body(String.class);
 	}
 
+	// Obtiene los episodios de una temporada concreta.
+	public String obtenerTemporada(String idExterno, int temporada) {
+
+		return restClient.get().uri(uriBuilder -> uriBuilder.path("/tv/{id}/season/{temporada}")
+				.queryParam("api_key", apiKey).queryParam("language", "es-ES").build(idExterno, temporada)).retrieve()
+				.body(String.class);
+	}
+
 	/**
 	 * Consulta las plataformas donde se puede ver una película. TMDB devuelve la
 	 * disponibilidad organizada por países.
