@@ -56,7 +56,7 @@ public class SecurityConfig {
 						// Páginas y recursos públicos.
 						.requestMatchers("/", "/index.html", "/login.html", "/registro.html", "/search.html",
 								"/work.html", "/resenas.html", "/valoraciones.html", "/perfil.html", // <-- NUEVO
-								"/lista.html", // <-- NUEVO
+								"/lista.html", "/usuario.html", "/conexiones.html", // <-- NUEVO
 								"/css/**", "/js/**", "/images/**", "/favicon.ico", "/subir-obra.html",
 								"/mis-obras.html", "/validar-obras.html", "/estado-validacion.html",
 								"/notificaciones.html", "/creador.html", "/publicas.html", "/recuperar-password.html",

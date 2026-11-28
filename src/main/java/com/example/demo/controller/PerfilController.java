@@ -26,6 +26,9 @@ import com.example.demo.service.PerfilService;
 
 import jakarta.validation.Valid;
 
+import java.util.List;
+import com.example.demo.dto.UsuarioBusquedaDTO;
+
 @RestController
 @RequestMapping("/api/perfil")
 public class PerfilController {
@@ -102,6 +105,12 @@ public class PerfilController {
 		String url = perfilService.actualizarBanner(auth.getName(), archivo);
 
 		return Map.of("url", url);
+	}
+	
+	// Buscador de usuarios.
+	@GetMapping("/buscar")
+	public List<UsuarioBusquedaDTO> buscarUsuarios(@RequestParam("texto") String texto, Authentication auth) {
+		return perfilService.buscarUsuarios(texto, auth.getName());
 	}
 
 }

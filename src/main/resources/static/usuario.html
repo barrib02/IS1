@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Perfil - Shelfie</title>
+<link rel="icon" href="/images/logo.svg">
+<link rel="stylesheet" href="/css/shelfie.css">
+<script src="/js/shelfie.js"></script>
+
+<style>
+#bannerUsuario {
+	display: none;
+	width: 100%;
+	height: 240px;
+	object-fit: cover;
+	border-radius: 10px;
+	background-color: var(--borde);
+}
+
+.fila-perfil {
+	display: flex;
+	align-items: flex-end;
+	flex-wrap: wrap;
+	gap: 20px;
+	padding: 0 25px;
+	margin-top: -65px;
+}
+
+#fotoUsuario {
+	position: relative;
+	flex: 0 0 auto;
+	width: 130px;
+	height: 130px;
+	object-fit: cover;
+	border-radius: 50%;
+	border: 5px solid white;
+	background-color: var(--borde);
+}
+
+#nombreUsuario {
+	margin: 0 0 12px;
+	font-size: 30px;
+}
+
+.acciones {
+	margin: 0 0 12px auto;
+}
+
+.biografia {
+	margin: 16px 0 0;
+	padding: 0 25px;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
+.contadores {
+	display: flex;
+	gap: 20px;
+	padding: 0 25px;
+	margin: 16px 0;
+}
+
+.contadores button {
+	padding: 0;
+	border: none;
+	background: none;
+	font: inherit;
+	color: inherit;
+	cursor: pointer;
+	text-decoration: underline;
+}
+
+.contadores span.fijo {
+	cursor: default;
+}
+
+.bloque {
+	margin-bottom: 25px;
+}
+
+.aviso {
+	padding: 16px;
+	border: 1px solid var(--borde);
+	border-radius: 8px;
+	background: #fbfaf7;
+}
+
+.fav, .lista, .persona {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	padding: 10px;
+	margin-bottom: 8px;
+	border: 1px solid var(--borde);
+	border-left: 5px solid var(--verde);
+	border-radius: 6px;
+	background: #fbfaf7;
+}
+
+.fav .posicion {
+	font-weight: bold;
+	font-size: 18px;
+	min-width: 24px;
+}
+
+.fav .titulo, .lista .titulo, .persona .titulo {
+	flex: 1;
+	min-width: 150px;
+	font-weight: bold;
+}
+
+.mini-avatar {
+	width: 36px;
+	height: 36px;
+	border-radius: 50%;
+	object-fit: cover;
+	background: var(--borde);
+}
+
+.etiqueta-perfil {
+	display: inline-block;
+	font-size: 13px;
+	padding: 2px 10px;
+	border-radius: 10px;
+	background: var(--borde);
+}
+
+#mensaje {
+	min-height: 22px;
+	font-weight: bold;
+}
+
+#mensaje.error {
+	color: var(--error);
+}
+</style>
+</head>
+<body>
+
+	<div id="navbar"></div>
+
+	<main class="contenedor">
+
+		<p id="mensaje" role="status"></p>
+
+		<!-- Cabecera: banner, foto, nombre, botón de seguir y biografía -->
+		<section id="cabecera" hidden>
+			<img id="bannerUsuario" alt="Banner del perfil">
+
+			<div class="fila-perfil">
+				<img id="fotoUsuario" alt="Foto de perfil">
+				<h1 id="nombreUsuario"></h1>
+				<div class="acciones">
+					<button type="button" id="botonSeguir" class="btn"></button>
+				</div>
+			</div>
+
+			<p class="biografia" id="biografiaUsuario"></p>
+
+			<div class="contadores">
+				<span id="contSeguidores"></span>
+				<span id="contSeguidos"></span>
+			</div>
+
+		</section>
+
+		<!-- Perfil "solo amigos" que todavía no te ha aceptado -->
+		<section id="avisoBloqueado" class="aviso" hidden>
+			<p id="textoBloqueado"></p>
+		</section>
+
+		<!-- Contenido completo: perfil público o amigo aceptado -->
+		<section id="contenidoCompleto" hidden>
+
+			<div class="bloque">
+				<h2>Tipo de perfil</h2>
+				<span id="tipoPerfil" class="etiqueta-perfil"></span>
+			</div>
+
+			<div class="bloque">
+				<h2>Favoritos</h2>
+				<div id="favoritos"></div>
+			</div>
+
+			<div class="bloque">
+				<h2>Listas públicas</h2>
+				<div id="listas"></div>
+			</div>
+
+		</section>
+
+	</main>
+
+	<script>
+const $ = id => document.getElementById(id);
+const esc = Shelfie.esc;
+const idUsuario = new URLSearchParams(window.location.search).get("id");
+
+const NOMBRE_PRIVACIDAD = { PUBLICO: "Público", SOLO_AMIGOS: "Solo amigos", PRIVADO: "Privado" };
+
+let vista = null;
+
+function mostrarMensaje(texto, esError) {
+	$("mensaje").textContent = texto;
+	$("mensaje").className = esError ? "error" : "";
+}
+
+function ocultarTodo() {
+	$("cabecera").hidden = true;
+	$("avisoBloqueado").hidden = true;
+	$("contenidoCompleto").hidden = true;
+}
+
+// ---------- Carga del perfil ----------
+async function cargar() {
+
+	if (!idUsuario) {
+		ocultarTodo();
+		mostrarMensaje("Falta indicar el usuario.", true);
+		return;
+	}
+
+	const r = await Shelfie.api("/api/vista-usuario/" + enc(idUsuario));
+
+	if (r.status === 401) {
+		window.location.href = "/login.html";
+		return;
+	}
+	if (r.status === 403) {
+		ocultarTodo();
+		mostrarMensaje("Este perfil es privado.", true);
+		return;
+	}
+	if (!r.ok || typeof r.datos !== "object" || r.datos === null) {
+		ocultarTodo();
+		mostrarMensaje("No se ha podido cargar el perfil.", true);
+		return;
+	}
+
+	vista = r.datos;
+
+	if (vista.relacion === "PROPIO") {
+		window.location.replace("/perfil.html");
+		return;
+	}
+
+	mostrarMensaje("", false);
+	document.title = vista.nombre + " - Shelfie";
+
+	pintarCabecera();
+	pintarBotonSeguir();
+	pintarContadores();
+
+	if (vista.puedeVerTodo) {
+		$("avisoBloqueado").hidden = true;
+		$("contenidoCompleto").hidden = false;
+		$("tipoPerfil").textContent = NOMBRE_PRIVACIDAD[vista.privacidadPerfil] || vista.privacidadPerfil;
+		cargarFavoritos();
+		cargarListas();
+	} else {
+		$("contenidoCompleto").hidden = true;
+		$("avisoBloqueado").hidden = false;
+		$("textoBloqueado").textContent = vista.relacion === "SOLICITUD_ENVIADA"
+			? "Has enviado una solicitud a " + vista.nombre + ". Cuando la acepte podrás ver sus favoritos, listas y seguidores."
+			: "El perfil de " + vista.nombre + " es solo para amigos. Envíale una solicitud de seguimiento para ver el resto de su perfil.";
+	}
+}
+
+function enc(texto) {
+	return encodeURIComponent(texto);
+}
+
+function pintarCabecera() {
+	$("cabecera").hidden = false;
+	$("nombreUsuario").textContent = vista.nombre;
+	$("biografiaUsuario").textContent = vista.biografia || "Este usuario todavía no ha escrito una biografía.";
+
+	const foto = $("fotoUsuario");
+	if (vista.fotoPerfilUrl) {
+		foto.src = vista.fotoPerfilUrl;
+	} else {
+		foto.removeAttribute("src");
+	}
+
+	const banner = $("bannerUsuario");
+	if (vista.bannerUrl) {
+		banner.src = vista.bannerUrl;
+		banner.style.display = "block";
+	} else {
+		banner.removeAttribute("src");
+		banner.style.display = "none";
+	}
+}
+
+// ---------- Botón seguir / dejar de seguir ----------
+function pintarBotonSeguir() {
+	const b = $("botonSeguir");
+	b.disabled = false;
+
+	if (vista.relacion === "SIGUE") {
+		b.textContent = "Dejar de seguir";
+		b.className = "btn btn-sec";
+	} else if (vista.relacion === "SOLICITUD_ENVIADA") {
+		b.textContent = "Solicitud enviada · Cancelar";
+		b.className = "btn btn-sec";
+	} else {
+		b.textContent = vista.requiereSolicitud ? "Enviar solicitud" : "Seguir";
+		b.className = "btn";
+	}
+}
+
+$("botonSeguir").addEventListener("click", async () => {
+
+	const b = $("botonSeguir");
+	b.disabled = true;
+
+	const yaRelacionado = vista.relacion === "SIGUE" || vista.relacion === "SOLICITUD_ENVIADA";
+
+	const r = await Shelfie.api("/api/seguimiento/" + enc(vista.id), {
+		method: yaRelacionado ? "DELETE" : "POST"
+	});
+
+	if (r.status === 401) {
+		window.location.href = "/login.html";
+		return;
+	}
+	if (!r.ok) {
+		mostrarMensaje(typeof r.datos === "string" ? r.datos : "No se ha podido completar la acción.", true);
+		b.disabled = false;
+		return;
+	}
+
+	// Recargamos todo: al seguir o dejar de seguir puede cambiar lo que se ve.
+	await cargar();
+});
+
+// ---------- Contadores ----------
+// Con acceso, el número es un enlace a la página de la lista; sin acceso, solo se ve el número.
+function pintarContadores() {
+
+	const seguidores = vista.numeroSeguidores + (vista.numeroSeguidores === 1 ? " seguidor" : " seguidores");
+	const seguidos = vista.numeroSeguidos + " seguidos";
+
+	if (vista.puedeVerTodo) {
+		const base = "/conexiones.html?id=" + enc(vista.id) + "&tipo=";
+		$("contSeguidores").innerHTML = '<a href="' + base + 'seguidores">' + esc(seguidores) + "</a>";
+		$("contSeguidos").innerHTML = '<a href="' + base + 'seguidos">' + esc(seguidos) + "</a>";
+	} else {
+		$("contSeguidores").innerHTML = "<span>" + esc(seguidores) + "</span>";
+		$("contSeguidos").innerHTML = "<span>" + esc(seguidos) + "</span>";
+	}
+}
+
+// ---------- Favoritos ----------
+// Espera: [{ obraId, titulo, tipo, posicion, fuenteApi, idExterno }]
+function enlaceFavorito(f) {
+	const externas = {
+		GOOGLE_BOOKS: ["LIBRO"],
+		TMDB: ["PELICULA", "SERIE"],
+		RAWG: ["VIDEOJUEGO"]
+	};
+
+	if (f.idExterno != null && externas[f.fuenteApi] && externas[f.fuenteApi].includes(f.tipo)) {
+		return "/work.html?fuente=" + enc(f.fuenteApi) + "&tipo=" + enc(f.tipo) + "&idExterno=" + enc(f.idExterno);
+	}
+	return "/work.html?id=" + enc(f.obraId);
+}
+
+async function cargarFavoritos() {
+
+	const caja = $("favoritos");
+	caja.innerHTML = "<p>Cargando…</p>";
+
+	const r = await Shelfie.api("/api/vista-usuario/" + enc(vista.id) + "/favoritos");
+
+	if (!r.ok || !Array.isArray(r.datos)) {
+		caja.innerHTML = '<p class="msg error">No se han podido cargar los favoritos.</p>';
+		return;
+	}
+	if (r.datos.length === 0) {
+		caja.innerHTML = '<p class="vacio">Este usuario todavía no tiene favoritos.</p>';
+		return;
+	}
+
+	caja.innerHTML = Object.keys(Shelfie.NOMBRE_TIPO).map(tipo => {
+
+		const items = r.datos.filter(f => f.tipo === tipo).sort((a, b) => a.posicion - b.posicion);
+		if (items.length === 0) {
+			return "";
+		}
+
+		return '<div class="bloque"><h3>' + esc(Shelfie.NOMBRE_TIPO[tipo]) + "</h3>"
+			+ items.map(f => '<div class="fav"><span class="posicion">' + esc(f.posicion) + "</span>"
+				+ '<span class="titulo"><a href="' + esc(enlaceFavorito(f)) + '">' + esc(f.titulo) + "</a></span></div>").join("")
+			+ "</div>";
+	}).join("");
+}
+
+// ---------- Listas públicas ----------
+// Espera: [{ id, nombre, descripcion, numeroObras }]
+async function cargarListas() {
+
+	const caja = $("listas");
+	caja.innerHTML = "<p>Cargando…</p>";
+
+	const r = await Shelfie.api("/api/vista-usuario/" + enc(vista.id) + "/listas");
+
+	if (!r.ok || !Array.isArray(r.datos)) {
+		caja.innerHTML = '<p class="msg error">No se han podido cargar las listas.</p>';
+		return;
+	}
+	if (r.datos.length === 0) {
+		caja.innerHTML = '<p class="vacio">Este usuario no tiene listas públicas.</p>';
+		return;
+	}
+
+	caja.innerHTML = r.datos.map(l => {
+		const n = Number(l.numeroObras || 0);
+		return '<div class="lista"><span class="titulo"><a href="/lista.html?id=' + enc(l.id) + '">'
+			+ esc(l.nombre) + " (" + n + (n === 1 ? " obra)" : " obras)") + "</a></span>"
+			+ (l.descripcion ? "<span>" + esc(l.descripcion) + "</span>" : "") + "</div>";
+	}).join("");
+}
+
+cargar();
+</script>
+
+</body>
+</html>

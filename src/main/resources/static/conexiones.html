@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Seguidores - Shelfie</title>
+<link rel="icon" href="/images/logo.svg">
+<link rel="stylesheet" href="/css/shelfie.css">
+<script src="/js/shelfie.js"></script>
+
+<style>
+.persona {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 12px;
+	padding: 10px;
+	margin-bottom: 8px;
+	border: 1px solid var(--borde);
+	border-left: 5px solid var(--verde);
+	border-radius: 6px;
+	background: #fbfaf7;
+}
+
+.persona .nombre {
+	flex: 1;
+	min-width: 150px;
+	font-weight: bold;
+}
+
+.persona a {
+	text-decoration: none;
+}
+
+.persona a:hover {
+	text-decoration: underline;
+}
+
+.mini-avatar {
+	width: 44px;
+	height: 44px;
+	border-radius: 50%;
+	object-fit: cover;
+	background: var(--borde);
+	flex: 0 0 auto;
+}
+
+.volver {
+	display: inline-block;
+	margin-bottom: 12px;
+}
+</style>
+</head>
+<body>
+
+	<div id="navbar"></div>
+
+	<main class="contenedor">
+
+		<a id="volver" class="volver" href="/search.html">← Volver al perfil</a>
+
+		<h1 id="titulo">Seguidores</h1>
+
+		<div class="pestanas">
+			<button type="button" class="pestana activa" id="pestSeguidores" aria-pressed="true">Seguidores</button>
+			<button type="button" class="pestana" id="pestSeguidos" aria-pressed="false">Seguidos</button>
+		</div>
+
+		<p id="estado" class="msg" role="status"></p>
+		<div id="resultados"></div>
+
+	</main>
+
+	<script>
+const $ = id => document.getElementById(id);
+const esc = Shelfie.esc;
+const enc = encodeURIComponent;
+
+const params = new URLSearchParams(window.location.search);
+const idUsuario = params.get("id");
+let tipo = params.get("tipo") === "seguidos" ? "seguidos" : "seguidores";
+
+let nombre = "";
+let peticion = 0;   // para ignorar respuestas antiguas si se cambia de pestaña rápido
+
+function error(texto) {
+	$("estado").className = "msg error";
+	$("estado").textContent = texto;
+	$("resultados").innerHTML = "";
+}
+
+function marcarPestana() {
+	$("pestSeguidores").classList.toggle("activa", tipo === "seguidores");
+	$("pestSeguidos").classList.toggle("activa", tipo === "seguidos");
+	$("pestSeguidores").setAttribute("aria-pressed", String(tipo === "seguidores"));
+	$("pestSeguidos").setAttribute("aria-pressed", String(tipo === "seguidos"));
+
+	const etiqueta = tipo === "seguidores" ? "Seguidores" : "Seguidos";
+	$("titulo").textContent = nombre ? etiqueta + " de " + nombre : etiqueta;
+	document.title = etiqueta + (nombre ? " de " + nombre : "") + " - Shelfie";
+}
+
+async function cargarLista() {
+
+	const miPeticion = ++peticion;
+	marcarPestana();
+
+	$("estado").className = "msg";
+	$("estado").textContent = "Cargando…";
+	$("resultados").innerHTML = "";
+
+	const r = await Shelfie.apiSesion("/api/vista-usuario/" + enc(idUsuario) + "/" + tipo);
+
+	if (miPeticion !== peticion) { return; }
+
+	if (r.status === 403) {
+		error("No tienes acceso a esta lista.");
+		return;
+	}
+	if (!r.ok || !Array.isArray(r.datos)) {
+		error("No se ha podido cargar la lista.");
+		return;
+	}
+
+	$("estado").textContent = "";
+
+	if (r.datos.length === 0) {
+		$("resultados").innerHTML = '<p class="vacio">'
+			+ (tipo === "seguidores" ? "Todavía no tiene seguidores." : "Todavía no sigue a nadie.") + "</p>";
+		return;
+	}
+
+	$("resultados").innerHTML = r.datos.map(p => {
+		const foto = p.fotoPerfilUrl
+			? '<img class="mini-avatar" src="' + esc(Shelfie.miniatura(p.fotoPerfilUrl, 100)) + '" alt="">'
+			: '<span class="mini-avatar"></span>';
+
+		return '<div class="persona">' + foto
+			+ '<span class="nombre"><a href="/usuario.html?id=' + enc(p.id) + '">' + esc(p.nombre) + "</a></span></div>";
+	}).join("");
+}
+
+function cambiarPestana(nueva) {
+	if (nueva === tipo) { return; }
+	tipo = nueva;
+
+	// Mantenemos la URL al día sin recargar la página.
+	history.replaceState(null, "", "/conexiones.html?id=" + enc(idUsuario) + "&tipo=" + tipo);
+	cargarLista();
+}
+
+$("pestSeguidores").addEventListener("click", () => cambiarPestana("seguidores"));
+$("pestSeguidos").addEventListener("click", () => cambiarPestana("seguidos"));
+
+async function iniciar() {
+
+	if (!idUsuario) {
+		error("Falta indicar el usuario.");
+		return;
+	}
+
+	// Necesitamos el nombre y saber si hay acceso (la lista solo es visible con permiso).
+	const v = await Shelfie.apiSesion("/api/vista-usuario/" + enc(idUsuario));
+
+	if (v.status === 403) {
+		error("Este perfil es privado.");
+		return;
+	}
+	if (!v.ok || typeof v.datos !== "object" || v.datos === null) {
+		error("No se ha podido cargar el usuario.");
+		return;
+	}
+
+	nombre = v.datos.nombre;
+
+	// Enlace de vuelta al perfil correcto (el propio o el de otro usuario).
+	$("volver").href = v.datos.relacion === "PROPIO" ? "/perfil.html" : "/usuario.html?id=" + enc(idUsuario);
+
+	if (!v.datos.puedeVerTodo) {
+		marcarPestana();
+		error("Las listas de " + nombre + " solo las ven sus amigos. Cuando acepte tu solicitud podrás verlas.");
+		return;
+	}
+
+	cargarLista();
+}
+
+iniciar();
+</script>
+
+</body>
+</html>

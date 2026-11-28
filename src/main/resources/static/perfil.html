@@ -429,6 +429,23 @@ main button.icono {
 			<p id="biografiaTexto" class="biografia"></p>
 		</section>
 
+		<section class="tarjeta">
+			<h2>Seguidores</h2>
+
+			<div style="display: flex; gap: 20px; flex-wrap: wrap;">
+
+				<a id="enlaceSeguidores" href="#" class="lista"
+					style="text-decoration: none;"> <strong id="numeroSeguidores">0</strong>
+					seguidores
+				</a> <a id="enlaceSeguidos" href="#" class="lista"
+					style="text-decoration: none;"> <strong id="numeroSeguidos">0</strong>
+					seguidos
+				</a>
+
+			</div>
+		</section>
+
+
 		<!-- ACTIVIDAD RECIENTE (H4.5) -->
 		<section class="tarjeta">
 			<h2>Actividad reciente</h2>
@@ -597,6 +614,40 @@ main button.icono {
 	        banner.style.display = "block";
 	    }
 	}
+	
+	async function cargarSeguimientos() {
+
+	    const seguidores =
+	        await api(
+	            "/api/usuarios/"
+	            + usuarioActualId
+	            + "/seguidores");
+
+	    const seguidos =
+	        await api(
+	            "/api/usuarios/"
+	            + usuarioActualId
+	            + "/seguidos");
+
+	    document.getElementById(
+	        "numeroSeguidores"
+	    ).textContent = seguidores.length;
+
+	    document.getElementById(
+	        "numeroSeguidos"
+	    ).textContent = seguidos.length;
+
+	    document.getElementById(
+	        "enlaceSeguidores"
+	    ).href =
+	        "/seguimientos.html?tipo=seguidores";
+
+	    document.getElementById(
+	        "enlaceSeguidos"
+	    ).href =
+	        "/seguimientos.html?tipo=seguidos";
+	}
+	
 	// ---------- Actividad reciente (H4.5) ----------
 
 	async function cargarActividad() {
@@ -1169,6 +1220,7 @@ main button.icono {
     async function iniciar() {
         try {
             await cargarPerfil();
+            await cargarSeguimientos();
             await cargarActividad();
             todasObras = await api("/search");
             await cargarFavoritos();

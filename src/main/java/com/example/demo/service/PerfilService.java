@@ -10,6 +10,9 @@ import com.example.demo.entity.Usuario;
 import com.example.demo.repository.UsuarioRepository;
 import com.example.demo.entity.PrivacidadPerfil;
 import java.io.IOException;
+import java.util.List;
+import org.springframework.data.domain.PageRequest;
+import com.example.demo.dto.UsuarioBusquedaDTO;
 
 @Service
 public class PerfilService {
@@ -171,6 +174,22 @@ public class PerfilService {
 		usuarioRepository.save(usuario);
 
 		return convertir(usuario);
+	}
+	
+	// Buscar usuarios por nombre (públicos y solo amigos).
+	public List<UsuarioBusquedaDTO> buscarUsuarios(String texto, String emailActual) {
+
+		String limpio = (texto == null) ? "" : texto.trim();
+
+		if (limpio.length() < 2) {
+			return List.of();
+		}
+
+		return usuarioRepository.buscarPorNombre(limpio, emailActual,
+				List.of(PrivacidadPerfil.PUBLICO, PrivacidadPerfil.SOLO_AMIGOS), PageRequest.of(0, 20)).stream()
+				.map(u -> new UsuarioBusquedaDTO(u.getId(), u.getNombre(), u.getFotoPerfilUrl(),
+						u.getPrivacidadPerfil()))
+				.toList();
 	}
 
 }

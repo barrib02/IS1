@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+<meta charset="UTF-8">
+<title>Seguimientos</title>
+
+<link rel="stylesheet"
+      href="/css/shelfie.css">
+
+<script src="/js/shelfie.js"></script>
+
+</head>
+
+<body>
+
+<div id="navbar"></div>
+
+<main class="contenedor">
+
+    <h1 id="titulo">
+        Usuarios
+    </h1>
+
+    <div id="usuarios"></div>
+
+</main>
+
+<script>
+
+const tipo =
+    new URLSearchParams(
+        window.location.search)
+        .get("tipo");
+
+function crearUsuario(usuario) {
+
+    return `
+        <div class="lista">
+            <span class="titulo">
+                ${usuario.username}
+            </span>
+        </div>
+    `;
+}
+
+async function cargar() {
+
+    const perfil =
+        await Shelfie.apiSesion(
+            "/api/perfil");
+
+    const usuarioId =
+        perfil.datos.id;
+
+    const r =
+        await Shelfie.apiSesion(
+            "/api/usuarios/"
+            + usuarioId
+            + "/"
+            + tipo);
+
+    if(!r.ok) {
+
+        document.getElementById(
+            "usuarios")
+            .innerHTML =
+            "<p>Error al cargar.</p>";
+
+        return;
+    }
+
+    document.getElementById(
+        "titulo")
+        .textContent =
+        tipo === "seguidores"
+        ? "Seguidores"
+        : "Seguidos";
+
+    document.getElementById(
+        "usuarios")
+        .innerHTML =
+        r.datos
+         .map(crearUsuario)
+         .join("");
+}
+
+cargar();
+
+</script>
+
+</body>
+</html>

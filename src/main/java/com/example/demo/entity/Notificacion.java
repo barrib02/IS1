@@ -35,6 +35,13 @@ public class Notificacion {
 
 	@Column(nullable = false)
 	private LocalDateTime fecha;
+	
+	// Usuario que provoca el aviso (por ejemplo, quien envía una solicitud).
+	@Column(name = "emisor_id")
+	private Long emisorId;
+
+	public Long getEmisorId() { return emisorId; }
+	public void setEmisorId(Long emisorId) { this.emisorId = emisorId; }
 
 	// Constructor vacío necesario para JPA.
 	public Notificacion() {

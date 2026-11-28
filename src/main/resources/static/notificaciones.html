@@ -28,11 +28,30 @@
 const $ = id => document.getElementById(id);
 
 let notificaciones = [];
+let solicitudes = [];   // solicitudes de seguimiento pendientes (con su estado en pantalla)
+
+// Usuario que envió la notificación (si el servidor no manda emisorId, lo buscamos por el texto).
+function emisorDe(n) {
+	if (n.emisorId != null) { return n.emisorId; }
+	const s = solicitudes.find(x => n.mensaje === x.nombre + " quiere seguirte");
+	return s ? s.usuarioId : null;
+}
+
+// Solicitud pendiente asociada a una notificación (o null si no es de ese tipo).
+function solicitudDe(n) {
+	if (n.tipo !== "SOLICITUD_SEGUIMIENTO") { return null; }
+	const id = emisorDe(n);
+	return solicitudes.find(s => s.usuarioId === id) || null;
+}
 
 // A dónde lleva cada tipo de notificación al pulsarla.
 function destino(n) {
 	if (n.tipo === "OBRA_RECHAZADA") { return "/mis-obras.html"; }               // para poder corregirla
 	if (n.tipo === "OBRA_VALIDADA" && n.obraId) { return "/work.html?id=" + n.obraId; }
+	if (n.tipo === "SOLICITUD_SEGUIMIENTO") {
+		const id = emisorDe(n);
+		return id ? "/usuario.html?id=" + id : "/perfil.html";
+	}
 	return "/mis-obras.html";
 }
 
@@ -40,7 +59,42 @@ function destino(n) {
 function etiqueta(n) {
 	if (n.tipo === "OBRA_VALIDADA") { return Shelfie.chipEstado("VALIDADA"); }
 	if (n.tipo === "OBRA_RECHAZADA") { return Shelfie.chipEstado("RECHAZADA"); }
+	if (n.tipo === "SOLICITUD_SEGUIMIENTO") { return '<span class="chip">Solicitud</span>'; }
 	return '<span class="chip">Aviso</span>';
+}
+
+// Notificación de solicitud: texto + botones (no es un enlace entero, para poder pulsar los botones).
+function tarjetaSolicitud(n, s) {
+	const enlace = '<a href="/usuario.html?id=' + s.usuarioId + '">' + Shelfie.esc(s.nombre) + '</a>';
+	const texto = s.estado === "ACEPTADA"
+		? "Has aceptado a " + enlace + "."
+		: enlace + " quiere seguirte.";
+
+	let botones = "";
+
+	if (s.estado === "PENDIENTE") {
+		botones += '<button type="button" class="btn" data-accion="aceptar" data-id="' + s.usuarioId + '">Aceptar solicitud</button>';
+	}
+
+	if (s.seguir === "SIGUE") {
+		botones += "<span>Ya le sigues</span>";
+	} else if (s.seguir === "SOLICITUD_ENVIADA") {
+		botones += "<span>Solicitud enviada</span>";
+	} else {
+		botones += '<button type="button" class="btn btn-sec" data-accion="seguir" data-id="' + s.usuarioId + '">Seguir también</button>';
+	}
+
+	if (s.estado === "PENDIENTE") {
+		botones += '<button type="button" class="btn btn-sec" data-accion="rechazar" data-id="' + s.usuarioId + '">Rechazar</button>';
+	}
+
+	return `
+		<div class="notif ${n.leida ? "" : "nueva"}" style="display:block">
+			${etiqueta(n)}
+			<p style="margin:6px 0 2px">${texto}</p>
+			<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:8px 0">${botones}</div>
+			<small>${new Date(n.fecha).toLocaleString("es-ES")}${n.leida ? "" : " · sin leer"}</small>
+		</div>`;
 }
 
 function pintar() {
@@ -49,16 +103,25 @@ function pintar() {
 		return;
 	}
 
-	$("lista").innerHTML = notificaciones.map(n => `
+	$("lista").innerHTML = notificaciones.map(n => {
+
+		const s = solicitudDe(n);
+		if (s) { return tarjetaSolicitud(n, s); }
+
+		return `
 		<a class="notif ${n.leida ? "" : "nueva"}" href="${destino(n)}" data-id="${n.id}">
 			${etiqueta(n)}
 			<p style="margin:6px 0 2px">${Shelfie.esc(n.mensaje)}</p>
 			<small>${new Date(n.fecha).toLocaleString("es-ES")}${n.leida ? "" : " · sin leer"}</small>
-		</a>`).join("");
+		</a>`;
+	}).join("");
 }
 
 async function cargar() {
-	const r = await Shelfie.apiSesion("/api/notificaciones");
+	const [r, rs] = await Promise.all([
+		Shelfie.apiSesion("/api/notificaciones"),
+		Shelfie.api("/api/seguimiento/solicitudes")
+	]);
 
 	if (!r.ok || !Array.isArray(r.datos)) {
 		$("msg").className = "msg error";
@@ -66,11 +129,15 @@ async function cargar() {
 		return;
 	}
 
+	solicitudes = (rs.ok && Array.isArray(rs.datos))
+		? rs.datos.map(s => ({ ...s, estado: "PENDIENTE", seguir: s.loSigo ? "SIGUE" : null }))
+		: [];
+
 	notificaciones = r.datos;
 	pintar();
 }
 
-// Al pulsar una notificación: la marcamos como leída y vamos a su destino.
+// Al pulsar una notificación normal: la marcamos como leída y vamos a su destino.
 $("lista").addEventListener("click", async function (evento) {
 	const enlace = evento.target.closest("a.notif");
 	if (!enlace) { return; }
@@ -79,6 +146,49 @@ $("lista").addEventListener("click", async function (evento) {
 	await Shelfie.apiSesion("/api/notificaciones/" + enlace.dataset.id + "/leida", { method: "PUT" });
 	window.location.href = enlace.getAttribute("href");
 });
+
+// Botones de las solicitudes: aceptar, seguir también y rechazar.
+$("lista").addEventListener("click", async function (evento) {
+	const boton = evento.target.closest("button[data-accion]");
+	if (!boton) { return; }
+
+	const id = Number(boton.dataset.id);
+	const s = solicitudes.find(x => x.usuarioId === id);
+	if (!s) { return; }
+
+	boton.disabled = true;
+
+	if (boton.dataset.accion === "aceptar") {
+
+		const r = await Shelfie.apiSesion("/api/seguimiento/solicitudes/" + id + "/aceptar", { method: "POST" });
+		if (r.ok) { s.estado = "ACEPTADA"; } else { mostrarError(r); }
+
+	} else if (boton.dataset.accion === "rechazar") {
+
+		const r = await Shelfie.apiSesion("/api/seguimiento/solicitudes/" + id + "/rechazar", { method: "POST" });
+		if (r.ok) {
+			// Quitamos la notificación de la pantalla y la solicitud de la lista.
+			notificaciones = notificaciones.filter(n => solicitudDe(n) !== s);
+			solicitudes = solicitudes.filter(x => x !== s);
+		} else {
+			mostrarError(r);
+		}
+
+	} else {
+
+		const r = await Shelfie.apiSesion("/api/seguimiento/" + id, { method: "POST" });
+		if (r.ok && r.datos) { s.seguir = r.datos.relacion; } else { mostrarError(r); }
+	}
+
+	pintar();
+});
+
+function mostrarError(r) {
+	$("msg").className = "msg error";
+	$("msg").textContent = typeof r.datos === "string" && r.datos
+		? r.datos
+		: "No se ha podido completar la acción.";
+}
 
 $("marcarTodas").addEventListener("click", async function () {
 	const r = await Shelfie.apiSesion("/api/notificaciones/leidas", { method: "PUT" });

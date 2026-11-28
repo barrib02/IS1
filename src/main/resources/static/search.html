@@ -16,6 +16,15 @@
 	border-radius: 8px;
 	margin-bottom: 12px;
 }
+
+.avatar-usuario {
+	width: 72px;
+	height: 72px;
+	object-fit: cover;
+	border-radius: 50%;
+	margin-bottom: 12px;
+}
+
 </style>
 
 </head>
@@ -34,6 +43,7 @@
 				aria-pressed="true">Obras</button>
 			<button type="button" class="pestana" id="modoListas"
 				aria-pressed="false">Listas</button>
+			<button type="button" class="pestana" id="modoUsuarios" aria-pressed="false">Usuarios</button>
 		</div>
 
 		<div class="barra-busqueda">
@@ -72,14 +82,17 @@ const NOMBRE_TIPO = Shelfie.NOMBRE_TIPO;
 const NOMBRE_PLURAL = { LIBRO: "libros", PELICULA: "películas", SERIE: "series", VIDEOJUEGO: "videojuegos" };
 
 // ---------- Cambio de pestaña ----------
+const PLACEHOLDER = { obras: "Busca por título…", listas: "Busca una lista…", usuarios: "Busca un usuario…" };
+
 function cambiarModo(nuevo) {
 	modo = nuevo;
-	$("modoObras").classList.toggle("activa", nuevo === "obras");
-	$("modoListas").classList.toggle("activa", nuevo === "listas");
-	$("modoObras").setAttribute("aria-pressed", String(nuevo === "obras"));
-	$("modoListas").setAttribute("aria-pressed", String(nuevo === "listas"));
-	$("tipo").hidden = (nuevo !== "obras");   // el filtro de tipo solo vale para obras
-	$("titulo").placeholder = nuevo === "obras" ? "Busca por título…" : "Busca una lista…";
+	["obras", "listas", "usuarios"].forEach(m => {
+		const boton = $("modo" + m[0].toUpperCase() + m.slice(1));
+		boton.classList.toggle("activa", m === nuevo);
+		boton.setAttribute("aria-pressed", String(m === nuevo));
+	});
+	$("tipo").hidden = (nuevo !== "obras");
+	$("titulo").placeholder = PLACEHOLDER[nuevo];
 	ocultarSugerencias();
 	ejecutar();
 }
@@ -94,7 +107,7 @@ async function pedir(url) {
 
 	if (r.status === 401 || r.status === 403) {
 		$("estado").className = "msg error";
-		$("estado").innerHTML = 'Inicia sesión para ver las listas. <a href="/login.html">Iniciar sesión</a>';
+		$("estado").innerHTML = 'Inicia sesión para ver las listas y usuarios. <a href="/login.html">Iniciar sesión</a>';
 		return [];
 	}
 	if (!r.ok || !Array.isArray(r.datos)) {
@@ -156,7 +169,7 @@ async function ejecutar() {
             }
         }
 
-    } else {
+    } else if (modo== "listas"){
 
         if (!texto) {
 
@@ -175,6 +188,21 @@ async function ejecutar() {
 
         if (miPeticion === numeroPeticion) {
             pintarListas(datos);
+        }
+    } else {
+    	$("encabezado").textContent = "Usuarios";
+
+        if (texto.length < 2) {
+            $("estado").textContent = "";
+            $("resultados").className = "rejilla";
+            $("resultados").innerHTML = '<p class="vacio">Escribe al menos 2 letras para buscar usuarios.</p>';
+            return;
+        }
+
+        datos = await pedir("/api/perfil/buscar?texto=" + enc(texto));
+
+        if (miPeticion === numeroPeticion) {
+            pintarUsuarios(datos);
         }
     }
 }
@@ -284,6 +312,31 @@ function pintarListas(listas) {
 		</article>`).join("");
 }
 
+function pintarUsuarios(usuarios) {
+	const caja = $("resultados");
+	caja.className = "rejilla";
+
+	if (usuarios.length === 0) {
+		caja.innerHTML = '<p class="vacio">No se han encontrado usuarios con ese nombre.</p>';
+		return;
+	}
+
+	caja.innerHTML = usuarios.map(u => {
+		const foto = (u.fotoPerfilUrl || "").replace(/^http:/, "https:");
+		const avatar = foto.startsWith("https://")
+			? `<img class="avatar-usuario" src="${Shelfie.esc(foto)}" alt="Foto de ${Shelfie.esc(u.nombre)}" loading="lazy">`
+			: "";
+		const etiqueta = u.privacidadPerfil === "SOLO_AMIGOS" ? "Solo amigos" : "Perfil público";
+
+		return `
+			<article class="tarjeta-obra">
+				${avatar}
+				<h3><a href="/usuario.html?id=${encodeURIComponent(u.id)}">${Shelfie.esc(u.nombre)}</a></h3>
+				<p>${etiqueta}</p>
+			</article>`;
+	}).join("");
+}
+
 //Pinta los estantes con obras externas e internas.
 function pintarEstantes(estantes) {
 
@@ -351,7 +404,9 @@ async function sugerir() {
 
 	const url = modo === "obras"
 		? "/sugerencias?texto=" + enc(texto)
-		: "/api/listas/sugerencias?texto=" + enc(texto);
+		: modo === "listas"
+			? "/api/listas/sugerencias?texto=" + enc(texto)
+			: "/api/perfil/buscar?texto=" + enc(texto);
 
 	try {
 		const r = await Shelfie.api(url, { signal: controladorSug.signal });
@@ -363,6 +418,12 @@ async function sugerir() {
 		    // Las sugerencias de listas mantienen su funcionamiento.
 		    if (modo === "listas") {
 		        return `<a href="/lista.html?id=${item.id}">
+		            ${Shelfie.esc(item.nombre)}
+		        </a>`;
+		    }
+		    
+		    if (modo === "usuarios") {
+		        return `<a href="/usuario.html?id=${encodeURIComponent(item.id)}">
 		            ${Shelfie.esc(item.nombre)}
 		        </a>`;
 		    }
@@ -412,6 +473,7 @@ $("sugerencias").addEventListener("click", e => {
 $("buscar").addEventListener("click", ejecutar);
 $("modoObras").addEventListener("click", () => cambiarModo("obras"));
 $("modoListas").addEventListener("click", () => cambiarModo("listas"));
+$("modoUsuarios").addEventListener("click", () => cambiarModo("usuarios"));
 $("tipo").addEventListener("change", ejecutar);                      // filtrar al elegir tipo
 $("titulo").addEventListener(
 	    "input", Shelfie.debounce(sugerir, 700)
